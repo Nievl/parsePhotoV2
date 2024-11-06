@@ -9,10 +9,10 @@ pub struct Link {
     pub is_downloaded: bool,
     #[serde(rename = "isReachable")]
     pub is_reachable: bool,
-    pub progress: Option<usize>,
+    pub progress: usize,
     #[serde(rename = "downloadedMediafiles")]
-    pub downloaded_mediafiles: Option<usize>,
-    pub mediafiles: Option<usize>,
+    pub downloaded_mediafiles: usize,
+    pub mediafiles: usize,
     #[serde(rename = "dateUpdate")]
     pub date_update: Option<String>,
     #[serde(rename = "dateCreate")]

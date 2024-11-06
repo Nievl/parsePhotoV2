@@ -167,7 +167,7 @@ impl LinksService {
         info!("Directory path: {}", &dir_path.to_string_lossy());
 
         let downloaded_files = self
-            .download_files_multi(media_urls, &dir_path)
+            .download_files_multi(media_urls, &dir_path, link.id)
             .await
             .map_err(|e| {
                 error!("Error downloading files: {}", e);
@@ -191,31 +191,27 @@ impl LinksService {
         info!("Progress: {}", &progress);
 
         let is_downloaded = downloaded_files.downloaded == downloaded_files.total;
-        match self.links_db_service.update_files_number(
+        return match self.links_db_service.update_files_number(
             id,
             downloaded_files.downloaded,
             downloaded_files.total,
             is_downloaded,
             progress,
         ) {
-            Ok(_) => {
-                return Ok((
-                    StatusCode::OK,
-                    Json(IResult {
-                        success: true,
-                        message: format!("Downloaded {} files", downloaded_files.downloaded),
-                    }),
-                ))
-            }
-            Err(e) => {
-                return Err((
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(IResult {
-                        success: false,
-                        message: e.to_string(),
-                    }),
-                ))
-            }
+            Ok(_) => Ok((
+                StatusCode::OK,
+                Json(IResult {
+                    success: true,
+                    message: format!("Downloaded {} files", downloaded_files.downloaded),
+                }),
+            )),
+            Err(e) => Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(IResult {
+                    success: false,
+                    message: e.to_string(),
+                }),
+            )),
         };
     }
 
@@ -271,77 +267,65 @@ impl LinksService {
                 }),
             ));
         } else if dir_exists && page.is_none() {
-            match self
+            return match self
                 .handle_downloaded_dir_without_page(link.id, &dir_path)
                 .await
             {
-                Ok(m) => {
-                    return Ok((
-                        StatusCode::OK,
-                        Json(IResult {
-                            success: true,
-                            message: m,
-                        }),
-                    ))
-                }
-                Err(e) => {
-                    return Err((
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(IResult {
-                            success: false,
-                            message: e.to_string(),
-                        }),
-                    ))
-                }
-            }
+                Ok(m) => Ok((
+                    StatusCode::OK,
+                    Json(IResult {
+                        success: true,
+                        message: m,
+                    }),
+                )),
+                Err(e) => Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(IResult {
+                        success: false,
+                        message: e.to_string(),
+                    }),
+                )),
+            };
         } else if dir_exists && page.is_some() {
-            match self
+            return match self
                 .handle_dir_and_page(link.id, &dir_path, page.as_ref().unwrap())
                 .await
             {
-                Ok(m) => {
-                    return Ok((
-                        StatusCode::OK,
-                        Json(IResult {
-                            success: true,
-                            message: m,
-                        }),
-                    ))
-                }
-                Err(e) => {
-                    return Err((
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(IResult {
-                            success: false,
-                            message: e.to_string(),
-                        }),
-                    ))
-                }
-            }
+                Ok(m) => Ok((
+                    StatusCode::OK,
+                    Json(IResult {
+                        success: true,
+                        message: m,
+                    }),
+                )),
+                Err(e) => Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(IResult {
+                        success: false,
+                        message: e.to_string(),
+                    }),
+                )),
+            };
         } else {
-            match self
+            return match self
                 .handle_page_without_dir(link.id, page.as_ref().unwrap())
                 .await
             {
-                Ok(m) => {
-                    return Ok((
-                        StatusCode::OK,
-                        Json(IResult {
-                            success: true,
-                            message: m,
-                        }),
-                    ))
-                }
-                Err(e) => {
-                    return Err((
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(IResult {
-                            success: false,
-                            message: e.to_string(),
-                        }),
-                    ))
-                }
-            }
+                Ok(m) => Ok((
+                    StatusCode::OK,
+                    Json(IResult {
+                        success: true,
+                        message: m,
+                    }),
+                )),
+                Err(e) => Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(IResult {
+                        success: false,
+                        message: e.to_string(),
+                    }),
+                )),
+            };
         }
     }
 
@@ -407,7 +391,7 @@ impl LinksService {
                 .update_files_number(link_id, 0, mediafiles, true, 100)
             {
                 Ok(_) => Ok(format!(
-                    "{} id: Files detected in directory, download marked as complete",
+                    "id: {}, Files detected in directory, download marked as complete",
                     link_id,
                 )),
                 Err(e) => Err(e.to_string()),
@@ -436,7 +420,7 @@ impl LinksService {
             progress,
         ) {
             Ok(_) => Ok(format!(
-                "{} id: Downloaded {} out of {} media files",
+                "id: {}, Downloaded {} out of {} media files",
                 link_id, existed_files_count, mediafiles
             )),
             Err(e) => Err(e.to_string()),
@@ -450,7 +434,7 @@ impl LinksService {
             .links_db_service
             .update_files_number(link_id, mediafiles, 0, false, 0)
         {
-            Ok(_) => Ok(format!("{} id: Not downloaded yet", link_id)),
+            Ok(_) => Ok(format!("id: {}, Not downloaded yet", link_id)),
             Err(e) => Err(e.to_string()),
         }
     }
@@ -459,6 +443,7 @@ impl LinksService {
         &self,
         urls: Vec<String>,
         dir_path: &Path,
+        link_id: usize,
     ) -> Result<DownloadedFiles, String> {
         let total_count = urls.len();
         let download_futures = urls.into_iter().map(|url| {
@@ -470,7 +455,7 @@ impl LinksService {
                 let use_root_url = !url.starts_with("http");
 
                 if file_path.exists() {
-                    return Ok::<usize, String>(0); // Файл уже существует, пропускаем
+                    return Ok::<usize, String>(1); // Файл уже существует, пропускаем
                 }
 
                 if !is_valid_extension(&file_name) {
@@ -485,7 +470,7 @@ impl LinksService {
                 };
 
                 info!("Downloading {} to {}", &download_url, file_path.display());
-                match download_file(&download_url, &file_path).await {
+                match download_file(&download_url, &file_path, link_id).await {
                     Ok(_) => Ok(1), // Успешно скачан один файл
                     Err(e) => {
                         error!("Failed to download {}: {}", url, e);
@@ -533,7 +518,7 @@ fn is_valid_extension(file_name: &str) -> bool {
         .any(|ext| file_name.ends_with(ext))
 }
 
-async fn download_file(url: &str, file_path: &Path) -> Result<(), String> {
+async fn download_file(url: &str, file_path: &Path, link_id: usize) -> Result<(), String> {
     let response = reqwest::get(url)
         .await
         .map_err(|e| format!("Request failed: {}", e))?
@@ -541,7 +526,7 @@ async fn download_file(url: &str, file_path: &Path) -> Result<(), String> {
         .await
         .map_err(|e| format!("Failed to read bytes: {}", e))?;
 
-    info!("Downloaded {} bytes", response.len());
+    info!("Link id: {}, Downloaded {} bytes", link_id, response.len());
 
     let mut file =
         fs::File::create(file_path).map_err(|e| format!("Failed to create file: {}", e))?;

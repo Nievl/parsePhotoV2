@@ -19,44 +19,44 @@ impl LinksController {
         State(service): State<Arc<LinksService>>,
         Json(create_link_dto): Json<CreateLinkDto>,
     ) -> impl IntoResponse {
-        return service.create_one(create_link_dto).await;
+        service.create_one(create_link_dto).await
     }
 
     pub async fn get_all(
         State(service): State<Arc<LinksService>>,
         Query(query): Query<BooleanQuery>,
     ) -> impl IntoResponse {
-        return service.get_all(query.is_reachable.unwrap_or(false)).await;
+        service.get_all(query.is_reachable.unwrap_or(false)).await
     }
 
     pub async fn remove(
         State(service): State<Arc<LinksService>>,
         Query(query): Query<IdDto>,
     ) -> impl IntoResponse {
-        return service.remove(query.id).await;
+        service.remove(query.id).await
     }
 
     pub async fn download_files(
         State(service): State<Arc<LinksService>>,
         Query(query): Query<IdDto>,
     ) -> impl IntoResponse {
-        return service.download(query.id).await;
+        service.download(query.id).await
     }
 
     pub async fn check_downloaded(
         State(service): State<Arc<LinksService>>,
         Query(query): Query<IdDto>,
     ) -> impl IntoResponse {
-        return service.check_downloaded(query.id).await;
+        service.check_downloaded(query.id).await
     }
 
     pub async fn tag_unreachable(
         State(service): State<Arc<LinksService>>,
         Query(query): Query<TagUnreachableParams>,
     ) -> impl IntoResponse {
-        return service
+        service
             .tag_unreachable(query.id, query.is_reachable.unwrap_or(false))
-            .await;
+            .await
     }
 }
 
