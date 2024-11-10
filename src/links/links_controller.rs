@@ -1,7 +1,8 @@
 use axum::{
     extract::{Query, State},
     response::IntoResponse,
-    Json,
+    routing::{delete, get, post},
+    Json, Router,
 };
 
 use std::sync::Arc;
@@ -17,9 +18,9 @@ pub struct LinksController {}
 impl LinksController {
     pub async fn create(
         State(service): State<Arc<LinksService>>,
-        Json(create_link_dto): Json<CreateLinkDto>,
+        Json(create_dto): Json<CreateLinkDto>,
     ) -> impl IntoResponse {
-        service.create_one(create_link_dto).await
+        service.create_one(create_dto).await
     }
 
     pub async fn get_all(
@@ -58,24 +59,32 @@ impl LinksController {
             .tag_unreachable(query.id, query.is_reachable.unwrap_or(false))
             .await
     }
+
+    pub async fn add_files_to_link(
+        State(service): State<Arc<LinksService>>,
+        Query(query): Query<IdDto>,
+    ) -> impl IntoResponse {
+        service.add_files_to_link(query.id).await
+    }
 }
 
-pub fn links_routes() -> axum::Router {
-    axum::Router::new()
-        .route("/links", axum::routing::post(LinksController::create))
-        .route("/links", axum::routing::get(LinksController::get_all))
-        .route("/links", axum::routing::delete(LinksController::remove))
-        .route(
-            "/links/download",
-            axum::routing::get(LinksController::download_files),
-        )
+pub fn links_routes() -> Router {
+    Router::new()
+        .route("/links", post(LinksController::create))
+        .route("/links", get(LinksController::get_all))
+        .route("/links", delete(LinksController::remove))
+        .route("/links/download", get(LinksController::download_files))
         .route(
             "/links/check_downloaded",
-            axum::routing::get(LinksController::check_downloaded),
+            get(LinksController::check_downloaded),
         )
         .route(
             "/links/tag_unreachable",
-            axum::routing::get(LinksController::tag_unreachable),
+            get(LinksController::tag_unreachable),
+        )
+        .route(
+            "/links/add_files_to_link",
+            get(LinksController::add_files_to_link),
         )
         .with_state(Arc::new(LinksService::new()))
 }

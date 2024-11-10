@@ -6,10 +6,11 @@ use tower_http::services::{ServeDir, ServeFile};
 mod config;
 mod init_db;
 mod links;
-mod utils;
 mod mediafiles;
+mod utils;
 use init_db::init_db_tables;
 use links::links_controller::links_routes;
+use mediafiles::mediafiles_controller::mediafiles_routes;
 
 #[tokio::main]
 async fn main() {
@@ -31,7 +32,8 @@ async fn main() {
                 .handle_error(|_| async { Html("Error loading index.html") }),
         )
         .nest_service("/static", ServeDir::new("web/static"))
-        .merge(links_routes());
+        .merge(links_routes())
+        .merge(mediafiles_routes());
 
     let listener = TcpListener::bind(&addr).expect("Failed to bind PORT");
 

@@ -1,6 +1,9 @@
 use super::config;
 use crate::{
-    mediafiles::mediafiles_service::MediafilesService,
+    mediafiles::{
+        self,
+        mediafiles_service::{calculate_hash_size, MediafilesService},
+    },
     utils::{error_response, server_error_response, success_response},
 };
 use axum::{http::StatusCode, response::IntoResponse, Json};
@@ -212,6 +215,75 @@ impl LinksService {
         }
     }
 
+    pub async fn add_files_to_link(&self, id: usize) -> impl IntoResponse {
+        info!("Adding files to link with id: {}", &id);
+
+        let link = match self.links_db_service.get_one(id) {
+            Ok(link) => match link {
+                Some(link) => link,
+                None => {
+                    return Err(error_response(
+                        "Link not found".to_string(),
+                        StatusCode::NOT_FOUND,
+                    ))
+                }
+            },
+            Err(e) => return Err(server_error_response(e.to_string())),
+        };
+
+        let dir_path = Path::new("result").join(&link.name);
+        info!("Directory path: {}", &dir_path.to_string_lossy());
+        let mediafiles_names = match fs::read_dir(dir_path) {
+            Ok(entries) => entries,
+            Err(e) => {
+                return Err(server_error_response(format!(
+                    "Failed to read directory: {}",
+                    e
+                )))
+            }
+        };
+
+        for mediafile_name in mediafiles_names {
+            let mediafile_name = match mediafile_name {
+                Ok(entry) => entry,
+                Err(e) => {
+                    error!("Error reading directory entry: {}", e);
+                    continue;
+                }
+            };
+            let file_path = mediafile_name.path();
+
+            let (hash, size) = match calculate_hash_size(&file_path).await {
+                Ok((hash, size)) => (hash, size),
+                Err(op) => {
+                    error!("Error calculating hash and size: {}", op);
+                    continue;
+                }
+            };
+            info!("Hash: {}", hash);
+            info!("Size: {}", size);
+
+            match self
+                .mediafiles_service
+                .create_one(mediafiles::dto::CreateDto {
+                    name: file_path.file_name().unwrap().to_string_lossy().to_string(),
+                    path: file_path.to_string_lossy().to_string(),
+                    hash,
+                    size,
+                    link_id: link.id,
+                })
+                .await
+            {
+                Ok(_) => info!(
+                    "Record for {} file created successfully",
+                    file_path.display()
+                ),
+                Err(e) => error!("Error creating mediafile: {}", e),
+            };
+        }
+
+        Ok(success_response("".to_string()))
+    }
     async fn handle_downloaded_dir_without_page(
         &self,
         link_id: usize,
