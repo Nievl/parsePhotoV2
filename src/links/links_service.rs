@@ -480,8 +480,14 @@ async fn download_file(url: &str, file_path: &Path, link_id: usize) -> Result<()
         .bytes()
         .await
         .map_err(|e| format!("Failed to read bytes: {}", e))?;
+    let message = format!(
+        "Link id: {}, file {}, {} bytes",
+        link_id,
+        file_path.display(),
+        response.len()
+    );
 
-    info!("Link id: {}, Downloaded {} bytes", link_id, response.len());
+    info!("{} {}", message, "downloaded",);
 
     let mut file =
         fs::File::create(file_path).map_err(|e| format!("Failed to create file: {}", e))?;
@@ -492,7 +498,7 @@ async fn download_file(url: &str, file_path: &Path, link_id: usize) -> Result<()
         error_message
     })?;
 
-    info!("writed {} bytes", response.len());
+    info!("{} {}", message, "writed to file",);
 
     Ok(())
 }
