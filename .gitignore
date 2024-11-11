@@ -4,3 +4,4 @@
 *.db
 /result
 .idea
+logs

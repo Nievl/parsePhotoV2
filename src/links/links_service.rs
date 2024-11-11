@@ -55,8 +55,7 @@ impl LinksService {
     }
 
     pub async fn get_all(&self, is_reachable: bool) -> impl IntoResponse {
-        info!("Getting all links");
-        info!("is_reachable: {}", &is_reachable);
+        info!("Getting all links is_reachable: {}", &is_reachable);
 
         return match self.links_db_service.get_all(is_reachable) {
             Ok(links) => Ok((StatusCode::OK, Json(links))),
@@ -92,32 +91,33 @@ impl LinksService {
             Ok(link) => match link {
                 Some(link) => link,
                 None => {
+                    info!("Link with id {} not found", &id);
                     return Err(error_response(
                         "Link not found".to_string(),
                         StatusCode::NOT_FOUND,
-                    ))
+                    ));
                 }
             },
             Err(e) => return Err(server_error_response(e.to_string())),
         };
 
-        info!("Link: {}", &link.path);
+        info!("Link with path: {} exist in DB", &link.path);
 
         let page = get_page(&link.path)
             .await
             .map_err(|e| (error_response(e.to_string(), StatusCode::NOT_FOUND)))?;
 
-        info!("Page: {}", &page.len());
-
         let media_urls = get_media_urls(&page);
 
-        info!("Media urls: {}", &media_urls.len());
+        info!(
+            "Media urls count: {} on page {}",
+            &media_urls.len(),
+            &link.path
+        );
 
         let dir_path = create_directory(&link.name)
             .await
             .map_err(|e| server_error_response(e))?;
-
-        info!("Directory path: {}", &dir_path.to_string_lossy());
 
         let downloaded_files = download_files_multi(media_urls, &dir_path, link.id)
             .await
@@ -132,8 +132,6 @@ impl LinksService {
         );
 
         let progress = calculate_progress(downloaded_files.total, downloaded_files.downloaded);
-
-        info!("Progress: {}", &progress);
 
         let is_downloaded = downloaded_files.downloaded == downloaded_files.total;
         return match self.links_db_service.update_files_number(
@@ -158,30 +156,33 @@ impl LinksService {
             Ok(link) => match link {
                 Some(link) => link,
                 None => {
+                    info!("Link with id {} not found", &id);
                     return Err(error_response(
                         "Link not found".to_string(),
                         StatusCode::NOT_FOUND,
-                    ))
+                    ));
                 }
             },
             Err(e) => return Err(server_error_response(e.to_string())),
         };
 
-        info!("Link: {}", &link.path);
+        info!("Link with path: {} exist in DB", &link.path);
 
         let dir_path = Path::new("result").join(&link.name);
-        info!("Directory path: {}", &dir_path.to_string_lossy());
-
         let dir_exists = dir_path.exists();
 
-        info!("Directory exists: {}", &dir_exists);
+        if dir_exists {
+            info!("Directory: {} exists", &dir_path.to_string_lossy());
+        }
 
         let page = match get_page(&link.path).await {
             Ok(page) => Some(page),
             Err(_) => None,
         };
 
-        info!("Page: {}", &page.is_some());
+        if page.is_some() {
+            info!("Page: {} is exists", &link.path);
+        }
 
         if !dir_exists && page.is_none() {
             return Ok(success_response(format!(

@@ -1,4 +1,5 @@
 use axum::{response::Html, routing::get_service, Router, Server};
+use config::init_log;
 use log::{error, info};
 use std::net::{SocketAddr, TcpListener};
 use tower_http::services::{ServeDir, ServeFile};
@@ -15,7 +16,8 @@ use mediafiles::mediafiles_controller::mediafiles_routes;
 #[tokio::main]
 async fn main() {
     config::init();
-    env_logger::init();
+
+    init_log();
 
     info!("Starting server on PORT {}", *config::PORT);
 
