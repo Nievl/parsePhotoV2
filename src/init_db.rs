@@ -56,7 +56,7 @@ pub fn init_db_tables() -> Result<()> {
         [],
     )?;
 
-    info!("Database tables checked and created if necessary");
+    info!("Database tables checked");
 
     Ok(())
 }
