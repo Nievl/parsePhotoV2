@@ -1,7 +1,9 @@
-use log::info;
 use sha2::{Digest, Sha256};
 
-use super::{dto::CreateDto, mediafiles_db_service::MediafilesDbService};
+use super::{
+    dto::{CreateDto, Mediafile},
+    mediafiles_db_service::MediafilesDbService,
+};
 use std::{fs::read, path::PathBuf, sync::Arc};
 
 pub struct MediafilesService {
@@ -16,8 +18,6 @@ impl MediafilesService {
     }
 
     pub async fn create_one(&self, dto: CreateDto) -> Result<String, String> {
-        info!("creating mediafile, name: {}", &dto.name);
-
         self.mediafiles_db_service
             .create_one(&dto)
             .map(|s| s.to_string())
@@ -25,11 +25,15 @@ impl MediafilesService {
     }
 
     pub async fn remove(&self, id: usize) -> Result<String, String> {
-        info!("Removing mediafile with id: {}", &id);
-
         self.mediafiles_db_service
             .remove(id)
             .map(|s| s.to_string())
+            .map_err(|e| e.to_string())
+    }
+
+    pub async fn get_all_by_link_id(&self, link_id: usize) -> Result<Vec<Mediafile>, String> {
+        self.mediafiles_db_service
+            .get_all_by_link_id(link_id)
             .map_err(|e| e.to_string())
     }
 }

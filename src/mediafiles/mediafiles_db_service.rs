@@ -1,8 +1,8 @@
 use std::env;
 
-use super::dto::CreateDto;
+use super::dto::{CreateDto, Mediafile};
 use crate::utils::get_now_time;
-use log::{error, info};
+use log::error;
 use rusqlite::{params, Connection, Result};
 
 pub struct MediafilesDbService {
@@ -32,7 +32,6 @@ impl MediafilesDbService {
             Ok(_) => {
                 // Получаем ID последней вставленной записи
                 let mediafile_id = tx.last_insert_rowid();
-                info!("Mediafile created with ID: {}", mediafile_id);
                 return match tx.execute(
                     "INSERT INTO mediafiles_links (link_id, mediafile_id) VALUES (?, ?)",
                     params![dto.link_id, mediafile_id],
@@ -80,5 +79,29 @@ impl MediafilesDbService {
                 return Err(e);
             }
         };
+    }
+
+    pub fn get_all_by_link_id(&self, link_id: usize) -> Result<Vec<Mediafile>> {
+        let conn = self.open_connection()?;
+        let mut stmt = conn.prepare(
+            "
+            SELECT m.id, m.path, m.name, m.hash, m.size, m.date_added
+            FROM mediafiles m
+            JOIN mediafiles_links ml ON m.id = ml.mediafile_id
+            WHERE ml.link_id = ?;
+            ",
+        )?;
+        let rows = stmt.query_map([link_id], |row| {
+            Ok(Mediafile {
+                id: row.get(0)?,
+                path: row.get(1)?,
+                name: row.get(2)?,
+                hash: row.get(3)?,
+                size: row.get(4)?,
+                date_added: row.get(5)?,
+            })
+        })?;
+        let result: Result<Vec<_>, _> = rows.collect();
+        result
     }
 }

@@ -1,7 +1,7 @@
 use super::config;
 use crate::{
     mediafiles::{
-        self,
+        dto::CreateDto,
         mediafiles_service::{calculate_hash_size, MediafilesService},
     },
     utils::{error_response, server_error_response, success_response},
@@ -13,7 +13,8 @@ use regex::Regex;
 use reqwest;
 use select::{document::Document, predicate::Name};
 use std::{
-    fs,
+    collections::HashSet,
+    fs::{create_dir_all, read_dir, File},
     io::Write,
     path::{Path, PathBuf},
     sync::Arc,
@@ -234,7 +235,7 @@ impl LinksService {
 
         let dir_path = Path::new("result").join(&link.name);
         info!("Directory path: {}", &dir_path.to_string_lossy());
-        let mediafiles_names = match fs::read_dir(dir_path) {
+        let mediafiles_names = match read_dir(dir_path) {
             Ok(entries) => entries,
             Err(e) => {
                 return Err(server_error_response(format!(
@@ -243,6 +244,21 @@ impl LinksService {
                 )))
             }
         };
+
+        let exist_mediafiles_records = match self.mediafiles_service.get_all_by_link_id(id).await {
+            Ok(mediafiles) => mediafiles,
+            Err(e) => {
+                return Err(server_error_response(format!(
+                    "Failed to get mediafiles names: {}",
+                    e
+                )))
+            }
+        };
+
+        let existing_records: HashSet<(String, String)> = exist_mediafiles_records
+            .iter()
+            .map(|record| (record.hash.clone(), record.path.clone()))
+            .collect();
 
         for mediafile_name in mediafiles_names {
             let mediafile_name = match mediafile_name {
@@ -261,14 +277,19 @@ impl LinksService {
                     continue;
                 }
             };
-            info!("Hash: {}", hash);
-            info!("Size: {}", size);
+
+            let path_str = file_path.to_string_lossy().to_string();
+
+            if existing_records.contains(&(hash.clone(), path_str.clone())) {
+                info!("File with path {} already exists, skipping", path_str);
+                continue;
+            }
 
             match self
                 .mediafiles_service
-                .create_one(mediafiles::dto::CreateDto {
+                .create_one(CreateDto {
                     name: file_path.file_name().unwrap().to_string_lossy().to_string(),
-                    path: file_path.to_string_lossy().to_string(),
+                    path: path_str,
                     hash,
                     size,
                     link_id: link.id,
@@ -276,8 +297,9 @@ impl LinksService {
                 .await
             {
                 Ok(_) => info!(
-                    "Record for {} file created successfully",
-                    file_path.display()
+                    "Record for {} file created successfully, link id: {}",
+                    file_path.display(),
+                    &link.id
                 ),
                 Err(e) => error!("Error creating mediafile: {}", e),
             };
@@ -290,7 +312,7 @@ impl LinksService {
         link_id: usize,
         dir_path: &Path,
     ) -> Result<String, String> {
-        let mediafiles = fs::read_dir(dir_path).unwrap().count();
+        let mediafiles = read_dir(dir_path).unwrap().count();
 
         if mediafiles > 0 {
             match self
@@ -315,7 +337,7 @@ impl LinksService {
         page: &str,
     ) -> Result<String, String> {
         let mediafiles = count_media_files(page);
-        let existed_files_count = fs::read_dir(dir_path).unwrap().count();
+        let existed_files_count = read_dir(dir_path).unwrap().count();
         let progress = (existed_files_count * 100) / mediafiles;
         let is_downloaded = existed_files_count == mediafiles;
 
@@ -405,8 +427,7 @@ async fn download_files_multi(
 async fn create_directory(name: &str) -> Result<PathBuf, String> {
     let dir_path = Path::new("result").join(name);
     if !dir_path.exists() {
-        let _ =
-            fs::create_dir_all(&dir_path).map_err(|e| format!("Failed to create directory: {}", e));
+        let _ = create_dir_all(&dir_path).map_err(|e| format!("Failed to create directory: {}", e));
     }
     Ok(dir_path)
 }
@@ -489,8 +510,7 @@ async fn download_file(url: &str, file_path: &Path, link_id: usize) -> Result<()
 
     info!("{} {}", message, "downloaded",);
 
-    let mut file =
-        fs::File::create(file_path).map_err(|e| format!("Failed to create file: {}", e))?;
+    let mut file = File::create(file_path).map_err(|e| format!("Failed to create file: {}", e))?;
 
     file.write_all(&response).map_err(|e| {
         let error_message = format!("Failed to write to file: {}", e);
