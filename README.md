@@ -2,11 +2,11 @@
 'cargo build --release' for build release version
 
 1. create .env file with:
-   DB_NAME=[name].db
-   PORT=[port_number]
-   RUST_LOG=info
-   ROOT_URL=[https://example.com]
-   EXTENSIONS=.jpg,.jpeg,.png,.gif,mp4
+   - DB_NAME=[name].db
+   - PORT=[port_number]
+   - RUST_LOG=info
+   - ROOT_URL=[https://example.com]
+   - EXTENSIONS=.jpg,.jpeg,.png,.gif,mp4
 2. create database file [name].db;
 3. 'cargo build --release' for build release version;
 4. frontend should be in 'web' folder;
