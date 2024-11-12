@@ -4,7 +4,12 @@ use super::{
     dto::{CreateDto, Mediafile},
     mediafiles_db_service::MediafilesDbService,
 };
-use std::{fs::read, path::PathBuf, sync::Arc};
+use std::{
+    fs::{read, File},
+    io::Write,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 pub struct MediafilesService {
     mediafiles_db_service: Arc<MediafilesDbService>,
@@ -38,15 +43,60 @@ impl MediafilesService {
     }
 }
 
-pub async fn calculate_hash_size(path: &PathBuf) -> Result<(String, usize), String> {
+pub async fn get_hash_size_by_path(path: &PathBuf) -> Result<(String, usize), String> {
     let buffer = read(path).map_err(|err| err.to_string())?;
+    let (hash, size) = calculate_hash_size(&buffer).await;
+
+    Ok((hash, size))
+}
+
+pub async fn download_file(
+    url: &str,
+    file_path: &Path,
+    link_id: usize,
+) -> Result<CreateDto, String> {
+    let response = fetch_and_write_file(url, file_path).await?;
+    let (hash, size) = calculate_hash_size(&response).await;
+    let name = file_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default()
+        .to_string();
+
+    Ok(CreateDto {
+        name,
+        path: file_path.to_string_lossy().into_owned(),
+        hash,
+        size,
+        link_id,
+    })
+}
+
+pub async fn fetch_and_write_file(url: &str, file_path: &Path) -> Result<Vec<u8>, String> {
+    let response = reqwest::get(url)
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read bytes: {}", e))?;
+
+    let mut file = File::create(file_path).map_err(|e| format!("Failed to create file: {}", e))?;
+
+    file.write_all(&response)
+        .map_err(|e| format!("Failed to write to file: {}", e))?;
+    file.flush()
+        .map_err(|e| format!("Failed to flush file: {}", e))?;
+
+    Ok(response.to_vec())
+}
+
+pub async fn calculate_hash_size(data: &Vec<u8>) -> (String, usize) {
     let mut hasher = Sha256::new();
 
-    hasher.update(&buffer);
+    hasher.update(data);
 
-    let hash_result = hasher.finalize();
-    let hash_hex = format!("{:x}", hash_result);
-    let size = buffer.len();
+    let hash = format!("{:x}", hasher.finalize());
+    let size = data.len();
 
-    Ok((hash_hex, size))
+    (hash, size)
 }

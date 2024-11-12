@@ -2,7 +2,7 @@ use super::config;
 use crate::{
     mediafiles::{
         dto::CreateDto,
-        mediafiles_service::{calculate_hash_size, MediafilesService},
+        mediafiles_service::{download_file, get_hash_size_by_path, MediafilesService},
     },
     utils::{error_response, server_error_response, success_response},
 };
@@ -11,12 +11,13 @@ use futures::stream::{FuturesUnordered, StreamExt};
 use log::{error, info, warn};
 use regex::Regex;
 use reqwest;
-use select::{document::Document, predicate::Name};
-use sha2::{Digest, Sha256};
+use select::{
+    document::Document,
+    predicate::{Name, Or},
+};
 use std::{
     collections::HashSet,
-    fs::{create_dir_all, read_dir, File},
-    io::Write,
+    fs::{create_dir_all, read_dir},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -288,7 +289,7 @@ impl LinksService {
             };
             let file_path = mediafile_name.path();
 
-            let (hash, size) = match calculate_hash_size(&file_path).await {
+            let (hash, size) = match get_hash_size_by_path(&file_path).await {
                 Ok((hash, size)) => (hash, size),
                 Err(op) => {
                     error!("Error calculating hash and size: {}", op);
@@ -399,13 +400,12 @@ async fn download_files_multi(
         spawn(async move {
             let file_name = Regex::new(r".+/").unwrap().replace(&url, "").to_string();
             let file_path = dir_path.join(&file_name);
-            let use_root_url = !url.starts_with("http");
 
             if file_path.exists() {
                 // нашли и обсчитали файл
-                match calculate_hash_size(&file_path).await {
+                match get_hash_size_by_path(&file_path).await {
                     Ok((hash, size)) => {
-                        return Ok::<CreateDto, String>(CreateDto {
+                        return Ok(CreateDto {
                             name: file_name,
                             path: file_path.to_string_lossy().to_string(),
                             hash,
@@ -431,7 +431,7 @@ async fn download_files_multi(
                 return Err(m);
             }
 
-            let download_url = if use_root_url {
+            let download_url = if !url.starts_with("http") {
                 format!("{}{}", *config::ROOT_URL, url)
             } else {
                 url.clone()
@@ -440,7 +440,15 @@ async fn download_files_multi(
             info!("Downloading {} to {}", &download_url, file_path.display());
 
             match download_file(&download_url, &file_path, link_id).await {
-                Ok(mediafile) => return Ok(mediafile), // Успешно скачан один файл
+                Ok(mediafile) => {
+                    info!(
+                        "Link_id: {}, {} bytes downloaded and saved to {}",
+                        link_id,
+                        mediafile.size,
+                        &file_path.display(),
+                    );
+                    return Ok(mediafile);
+                }
                 Err(e) => {
                     let m = format!("Failed to download {}: {}", url, e);
                     error!("{}", m);
@@ -487,30 +495,29 @@ fn calculate_progress(total: usize, downloaded: usize) -> usize {
 }
 
 fn get_media_urls(page: &str) -> Vec<String> {
-    let document = Document::from(page);
-    let mut media_urls: Vec<String> = Vec::new();
-
-    for node in document.find(Name("img")).filter_map(|n| n.attr("src")) {
-        media_urls.push(node.to_string());
-    }
-    for node in document.find(Name("video")).filter_map(|n| n.attr("src")) {
-        media_urls.push(node.to_string());
-    }
-
+    let mut media_urls = Vec::new();
+    process_media_urls(page, |url| media_urls.push(url.to_string()));
     media_urls
 }
 
 fn count_media_files(page: &str) -> usize {
-    let document = Document::from(page);
     let mut count = 0;
-
-    for _ in document.find(Name("img")).filter_map(|n| n.attr("src")) {
-        count += 1;
-    }
-    for _ in document.find(Name("video")).filter_map(|n| n.attr("src")) {
-        count += 1;
-    }
+    process_media_urls(page, |_| count += 1);
     count
+}
+
+fn process_media_urls<F>(page: &str, mut f: F)
+where
+    F: FnMut(&str),
+{
+    let document = Document::from(page);
+
+    for node in document
+        .find(Or(Name("img"), Name("video")))
+        .filter_map(|n| n.attr("src"))
+    {
+        f(node);
+    }
 }
 
 fn check_url(url: &str) -> Option<Vec<String>> {
@@ -533,54 +540,4 @@ fn is_valid_extension(file_name: &str) -> bool {
     config::EXTENSIONS
         .iter()
         .any(|ext| file_name.ends_with(ext))
-}
-
-async fn download_file(url: &str, file_path: &Path, link_id: usize) -> Result<CreateDto, String> {
-    let response = reqwest::get(url)
-        .await
-        .map_err(|e| format!("Request failed: {}", e))?
-        .bytes()
-        .await
-        .map_err(|e| format!("Failed to read bytes: {}", e))?;
-    let message = format!(
-        "Link id: {}, file {}, {} bytes",
-        link_id,
-        file_path.display(),
-        response.len()
-    );
-
-    info!("{} {}", message, "downloaded",);
-
-    let mut file = File::create(file_path).map_err(|e| format!("Failed to create file: {}", e))?;
-
-    file.write_all(&response).map_err(|e| {
-        let error_message = format!("Failed to write to file: {}", e);
-        error!("{}", error_message);
-        error_message
-    })?;
-
-    file.flush()
-        .map_err(|e| format!("Failed to flush file: {}", e))?;
-
-    // Calculate file hash
-    let mut hasher = Sha256::new();
-    hasher.update(&response);
-    let hash = format!("{:x}", hasher.finalize());
-    let size = response.len();
-
-    let name = file_path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or_default()
-        .to_string();
-
-    info!("{} {}", message, "writed to file",);
-
-    Ok(CreateDto {
-        name,
-        path: file_path.to_string_lossy().into_owned(),
-        hash,
-        size,
-        link_id,
-    })
 }
