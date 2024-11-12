@@ -12,6 +12,7 @@ use log::{error, info, warn};
 use regex::Regex;
 use reqwest;
 use select::{document::Document, predicate::Name};
+use sha2::{Digest, Sha256};
 use std::{
     collections::HashSet,
     fs::{create_dir_all, read_dir, File},
@@ -21,7 +22,7 @@ use std::{
 };
 use tokio::spawn;
 
-use super::dto::{CreateLinkDto, DownloadedFiles};
+use super::dto::CreateLinkDto;
 use super::links_db_service::LinksDbService;
 
 #[derive(Clone)]
@@ -92,7 +93,7 @@ impl LinksService {
             Ok(link) => match link {
                 Some(link) => link,
                 None => {
-                    info!("Link with id {} not found", &id);
+                    warn!("Link with id {} not found", &id);
                     return Err(error_response(
                         "Link not found".to_string(),
                         StatusCode::NOT_FOUND,
@@ -109,6 +110,7 @@ impl LinksService {
             .map_err(|e| (error_response(e.to_string(), StatusCode::NOT_FOUND)))?;
 
         let media_urls = get_media_urls(&page);
+        let total = media_urls.len();
 
         info!(
             "Media urls count: {} on page {}",
@@ -120,31 +122,53 @@ impl LinksService {
             .await
             .map_err(|e| server_error_response(e))?;
 
-        let downloaded_files = download_files_multi(media_urls, &dir_path, link.id)
+        let downloaded: Vec<CreateDto> = download_files_multi(media_urls, &dir_path, link.id)
             .await
             .map_err(|e| {
                 error!("Error downloading files: {}", e);
                 server_error_response(e)
             })?;
 
-        info!(
-            "Downloaded files: {}, from {}",
-            &downloaded_files.downloaded, &downloaded_files.total
-        );
+        let downloaded_count = downloaded.len();
 
-        let progress = calculate_progress(downloaded_files.total, downloaded_files.downloaded);
+        info!("Downloaded files: {}, from {}", downloaded_count, total);
 
-        let is_downloaded = downloaded_files.downloaded == downloaded_files.total;
+        let existing_records: HashSet<(String, String)> = self
+            .mediafiles_service
+            .get_all_by_link_id(id)
+            .await
+            .map_err(|e| server_error_response(format!("Failed to get mediafiles: {}", e)))?
+            .iter()
+            .map(|record| (record.hash.clone(), record.path.clone()))
+            .collect();
+
+        // Identify missing records and add them to the database
+        let new_records: Vec<CreateDto> = downloaded
+            .into_iter()
+            .filter(|file| !existing_records.contains(&(file.hash.clone(), file.path.clone())))
+            .collect();
+
+        for new_record in new_records {
+            let path = new_record.path.clone();
+            match self.mediafiles_service.create_one(new_record).await {
+                Ok(_) => info!("Inserted new mediafile record: {}", path),
+                Err(e) => error!("Failed to insert mediafile record: {}, error: {}", path, e),
+            }
+        }
+
+        let progress = calculate_progress(total, downloaded_count);
+
+        let is_downloaded = downloaded_count == total;
         return match self.links_db_service.update_files_number(
             id,
-            downloaded_files.downloaded,
-            downloaded_files.total,
+            downloaded_count,
+            total,
             is_downloaded,
             progress,
         ) {
             Ok(_) => Ok(success_response(format!(
                 "Downloaded {} files",
-                downloaded_files.downloaded
+                downloaded_count
             ))),
             Err(e) => Err(server_error_response(e.to_string())),
         };
@@ -245,17 +269,11 @@ impl LinksService {
             }
         };
 
-        let exist_mediafiles_records = match self.mediafiles_service.get_all_by_link_id(id).await {
-            Ok(mediafiles) => mediafiles,
-            Err(e) => {
-                return Err(server_error_response(format!(
-                    "Failed to get mediafiles names: {}",
-                    e
-                )))
-            }
-        };
-
-        let existing_records: HashSet<(String, String)> = exist_mediafiles_records
+        let existing_records: HashSet<(String, String)> = self
+            .mediafiles_service
+            .get_all_by_link_id(id)
+            .await
+            .map_err(|e| server_error_response(format!("Failed to get mediafiles: {}", e)))?
             .iter()
             .map(|record| (record.hash.clone(), record.path.clone()))
             .collect();
@@ -307,6 +325,7 @@ impl LinksService {
 
         Ok(success_response("".to_string()))
     }
+
     async fn handle_downloaded_dir_without_page(
         &self,
         link_id: usize,
@@ -373,8 +392,7 @@ async fn download_files_multi(
     urls: Vec<String>,
     dir_path: &Path,
     link_id: usize,
-) -> Result<DownloadedFiles, String> {
-    let total_count = urls.len();
+) -> Result<Vec<CreateDto>, String> {
     let download_futures = urls.into_iter().map(|url| {
         let dir_path = dir_path.to_path_buf(); // Клонируем путь для использования в разных потоках
 
@@ -384,12 +402,33 @@ async fn download_files_multi(
             let use_root_url = !url.starts_with("http");
 
             if file_path.exists() {
-                return Ok::<usize, String>(1); // Файл уже существует, пропускаем
+                // нашли и обсчитали файл
+                match calculate_hash_size(&file_path).await {
+                    Ok((hash, size)) => {
+                        return Ok::<CreateDto, String>(CreateDto {
+                            name: file_name,
+                            path: file_path.to_string_lossy().to_string(),
+                            hash,
+                            size,
+                            link_id,
+                        });
+                    }
+                    Err(e) => {
+                        let m = format!(
+                            "Error calculating hash and size: {}, path {}",
+                            e,
+                            file_path.display()
+                        );
+                        error!("{}", m);
+                        return Err(m);
+                    }
+                };
             }
 
             if !is_valid_extension(&file_name) {
-                warn!("{} is not an image", file_name);
-                return Ok(0);
+                let m = format!("{} is not an image", file_name);
+                warn!("{}", m);
+                return Err(m);
             }
 
             let download_url = if use_root_url {
@@ -399,29 +438,31 @@ async fn download_files_multi(
             };
 
             info!("Downloading {} to {}", &download_url, file_path.display());
+
             match download_file(&download_url, &file_path, link_id).await {
-                Ok(_) => Ok(1), // Успешно скачан один файл
+                Ok(mediafile) => return Ok(mediafile), // Успешно скачан один файл
                 Err(e) => {
-                    error!("Failed to download {}: {}", url, e);
-                    Ok(0)
+                    let m = format!("Failed to download {}: {}", url, e);
+                    error!("{}", m);
+                    return Err(m);
                 }
             }
         })
     });
 
     // Запускаем все загрузки параллельно
-    let results: Vec<_> = FuturesUnordered::from_iter(download_futures)
+    let results: Vec<Result<CreateDto, String>> = FuturesUnordered::from_iter(download_futures)
         .filter_map(|res| async move { res.ok() })
-        .collect()
+        .collect::<Vec<_>>()
         .await;
 
-    // Считаем количество успешно загруженных файлов
-    let downloaded_count: usize = results.iter().filter(|&count| *count == Ok(1)).count();
+    // Фильтруем результаты, чтобы исключить `None`, и собираем в `Vec<CreateDto>`
+    let downloaded_files: Vec<CreateDto> = results
+        .into_iter()
+        .filter_map(|dto| if let Ok(dto) = dto { Some(dto) } else { None })
+        .collect();
 
-    Ok(DownloadedFiles {
-        downloaded: downloaded_count,
-        total: total_count,
-    })
+    Ok(downloaded_files)
 }
 
 async fn create_directory(name: &str) -> Result<PathBuf, String> {
@@ -494,7 +535,7 @@ fn is_valid_extension(file_name: &str) -> bool {
         .any(|ext| file_name.ends_with(ext))
 }
 
-async fn download_file(url: &str, file_path: &Path, link_id: usize) -> Result<(), String> {
+async fn download_file(url: &str, file_path: &Path, link_id: usize) -> Result<CreateDto, String> {
     let response = reqwest::get(url)
         .await
         .map_err(|e| format!("Request failed: {}", e))?
@@ -514,11 +555,32 @@ async fn download_file(url: &str, file_path: &Path, link_id: usize) -> Result<()
 
     file.write_all(&response).map_err(|e| {
         let error_message = format!("Failed to write to file: {}", e);
-        error!("Failed to write to file: {}", e);
+        error!("{}", error_message);
         error_message
     })?;
 
+    file.flush()
+        .map_err(|e| format!("Failed to flush file: {}", e))?;
+
+    // Calculate file hash
+    let mut hasher = Sha256::new();
+    hasher.update(&response);
+    let hash = format!("{:x}", hasher.finalize());
+    let size = response.len();
+
+    let name = file_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default()
+        .to_string();
+
     info!("{} {}", message, "writed to file",);
 
-    Ok(())
+    Ok(CreateDto {
+        name,
+        path: file_path.to_string_lossy().into_owned(),
+        hash,
+        size,
+        link_id,
+    })
 }

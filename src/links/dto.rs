@@ -46,8 +46,3 @@ pub struct TagUnreachableParams {
 pub struct IdDto {
     pub id: usize,
 }
-
-pub struct DownloadedFiles {
-    pub downloaded: usize,
-    pub total: usize,
-}
