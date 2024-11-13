@@ -8,7 +8,7 @@ use crate::{
 };
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use futures::stream::{FuturesUnordered, StreamExt};
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use regex::Regex;
 use reqwest;
 use select::{
@@ -259,7 +259,7 @@ impl LinksService {
         };
 
         let dir_path = Path::new("result").join(&link.name);
-        info!("Directory path: {}", &dir_path.to_string_lossy());
+        debug!("Directory path: {}", &dir_path.to_string_lossy());
         let mediafiles_names = match read_dir(dir_path) {
             Ok(entries) => entries,
             Err(e) => {
@@ -303,7 +303,7 @@ impl LinksService {
             let path_str = file_path.to_string_lossy().to_string();
 
             if existing_records.contains(&(hash.clone(), path_str.clone())) {
-                info!("File with path {} already exists, skipping", path_str);
+                debug!("File with path {} already exists, skipping", path_str);
                 continue;
             }
 
@@ -320,7 +320,7 @@ impl LinksService {
             {
                 Ok(_) => {
                     new_records_count += 1;
-                    info!(
+                    debug!(
                         "Record for {} file created successfully, link id: {}",
                         file_path.display(),
                         &link.id
@@ -334,6 +334,21 @@ impl LinksService {
             "{} files added, {} files already exists",
             new_records_count, existed_records_count
         )))
+    }
+
+    pub async fn scan_files(&self) -> impl IntoResponse {
+        let links_id = self
+            .links_db_service
+            .get_all(true)
+            .unwrap()
+            .into_iter()
+            .map(|link| link.id);
+
+        for id in links_id {
+            self.scan_files_for_link(id).await;
+        }
+
+        success_response("".to_string())
     }
 
     async fn handle_downloaded_dir_without_page(

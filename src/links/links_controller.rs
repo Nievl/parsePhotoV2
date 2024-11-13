@@ -66,6 +66,10 @@ impl LinksController {
     ) -> impl IntoResponse {
         service.scan_files_for_link(query.id).await
     }
+
+    pub async fn scan_files(State(service): State<Arc<LinksService>>) -> impl IntoResponse {
+        service.scan_files().await
+    }
 }
 
 pub fn links_routes() -> Router {
@@ -86,5 +90,6 @@ pub fn links_routes() -> Router {
             "/links/scan_files_for_link",
             get(LinksController::scan_files_for_link),
         )
+        .route("/links/scan_files", get(LinksController::scan_files))
         .with_state(Arc::new(LinksService::new()))
 }
