@@ -242,7 +242,7 @@ impl LinksService {
         }
     }
 
-    pub async fn add_files_to_link(&self, id: usize) -> impl IntoResponse {
+    pub async fn scan_files_for_link(&self, id: usize) -> impl IntoResponse {
         info!("Adding files to link with id: {}", &id);
 
         let link = match self.links_db_service.get_one(id) {
@@ -278,6 +278,9 @@ impl LinksService {
             .iter()
             .map(|record| (record.hash.clone(), record.path.clone()))
             .collect();
+
+        let existed_records_count = existing_records.len();
+        let mut new_records_count: usize = 0;
 
         for mediafile_name in mediafiles_names {
             let mediafile_name = match mediafile_name {
@@ -315,16 +318,22 @@ impl LinksService {
                 })
                 .await
             {
-                Ok(_) => info!(
-                    "Record for {} file created successfully, link id: {}",
-                    file_path.display(),
-                    &link.id
-                ),
+                Ok(_) => {
+                    new_records_count += 1;
+                    info!(
+                        "Record for {} file created successfully, link id: {}",
+                        file_path.display(),
+                        &link.id
+                    )
+                }
                 Err(e) => error!("Error creating mediafile: {}", e),
             };
         }
 
-        Ok(success_response("".to_string()))
+        Ok(success_response(format!(
+            "{} files added, {} files already exists",
+            new_records_count, existed_records_count
+        )))
     }
 
     async fn handle_downloaded_dir_without_page(
@@ -540,4 +549,12 @@ fn is_valid_extension(file_name: &str) -> bool {
     config::EXTENSIONS
         .iter()
         .any(|ext| file_name.ends_with(ext))
+}
+
+fn read_dir_entries(dir_path: &Path) -> Result<Vec<PathBuf>, String> {
+    read_dir(dir_path)
+        .map_err(|e| format!("Failed to read directory: {}", e))?
+        .map(|entry| entry.map(|e| e.path()))
+        .collect::<Result<Vec<_>, std::io::Error>>()
+        .map_err(|e| format!("Failed to collect directory entries: {}", e))
 }

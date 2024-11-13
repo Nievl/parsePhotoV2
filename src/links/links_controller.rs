@@ -60,11 +60,11 @@ impl LinksController {
             .await
     }
 
-    pub async fn add_files_to_link(
+    pub async fn scan_files_for_link(
         State(service): State<Arc<LinksService>>,
         Query(query): Query<IdDto>,
     ) -> impl IntoResponse {
-        service.add_files_to_link(query.id).await
+        service.scan_files_for_link(query.id).await
     }
 }
 
@@ -83,8 +83,8 @@ pub fn links_routes() -> Router {
             get(LinksController::tag_unreachable),
         )
         .route(
-            "/links/add_files_to_link",
-            get(LinksController::add_files_to_link),
+            "/links/scan_files_for_link",
+            get(LinksController::scan_files_for_link),
         )
         .with_state(Arc::new(LinksService::new()))
 }
