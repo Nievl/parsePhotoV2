@@ -550,11 +550,3 @@ fn is_valid_extension(file_name: &str) -> bool {
         .iter()
         .any(|ext| file_name.ends_with(ext))
 }
-
-fn read_dir_entries(dir_path: &Path) -> Result<Vec<PathBuf>, String> {
-    read_dir(dir_path)
-        .map_err(|e| format!("Failed to read directory: {}", e))?
-        .map(|entry| entry.map(|e| e.path()))
-        .collect::<Result<Vec<_>, std::io::Error>>()
-        .map_err(|e| format!("Failed to collect directory entries: {}", e))
-}
