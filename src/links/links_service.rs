@@ -162,8 +162,8 @@ impl LinksService {
         let is_downloaded = downloaded_count == total;
         return match self.links_db_service.update_files_number(
             id,
-            downloaded_count,
             total,
+            downloaded_count,
             is_downloaded,
             progress,
         ) {
