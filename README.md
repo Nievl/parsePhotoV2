@@ -1,6 +1,15 @@
 'cargo watch -w src -x run' for start live reloading
 'cargo build --release' for build release version
 
+you need next installed packages:
+
+- npm vs NodeJS
+- rust and cargo
+- cargo-watch (cargo install cargo-watch)
+- trunk (cargo install --locked trunk)
+
+To build project you need:
+
 1. create .env file with:
    - DB_NAME=[name].db
    - PORT=[port_number]

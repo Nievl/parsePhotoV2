@@ -1,8 +1,9 @@
-/target
+target
 .env
 /web
 *.db
-/result
+/backend/result
 .idea
 logs
 node_modules
+frontend/dist
