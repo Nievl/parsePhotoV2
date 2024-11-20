@@ -41,6 +41,7 @@ pub struct BooleanQuery {
 #[derive(Deserialize)]
 pub struct TagUnreachableParams {
     pub id: usize,
+    #[serde(rename = "isReachable")]
     pub is_reachable: Option<bool>,
 }
 
@@ -51,6 +52,8 @@ pub struct IdDto {
 
 #[derive(Deserialize)]
 pub struct IdDublicateDto {
+    #[serde(rename = "linkId")]
     pub link_id: usize,
+    #[serde(rename = "duplicateId")]
     pub duplicate_id: usize,
 }
