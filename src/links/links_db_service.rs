@@ -39,10 +39,15 @@ impl LinksDbService {
         };
     }
 
-    pub fn get_all(&self, is_reachable: bool) -> Result<Vec<Link>> {
+    pub fn get_all(&self, is_reachable: bool, show_duplicate: bool) -> Result<Vec<Link>> {
         let conn = self.open_connection()?;
-        let mut stmt =
-            conn.prepare("SELECT * FROM links WHERE is_reachable = ? ORDER BY is_downloaded")?;
+        let query = if show_duplicate {
+            "SELECT * FROM links WHERE is_reachable = ? ORDER BY is_downloaded"
+        } else {
+            "SELECT * FROM links WHERE is_reachable = ? AND duplicate_id IS NULL ORDER BY is_downloaded"
+        };
+        let mut stmt = conn.prepare(query)?;
+
         let rows = stmt.query_map([is_reachable], |row| {
             Ok(Link {
                 id: row.get(0)?,
@@ -119,6 +124,23 @@ impl LinksDbService {
                 } else {
                     "unreachable"
                 }
+            )
+        } else {
+            "No path tagged".to_string()
+        })
+    }
+
+    pub fn add_duplicate(&self, link_id: usize, duplicate_id: usize) -> Result<String> {
+        let conn = self.open_connection()?;
+        let changes = conn.execute(
+            "UPDATE links SET duplicate_id = ?, date_update = ? WHERE id = ?",
+            params![duplicate_id, get_now_time(), link_id],
+        )?;
+
+        Ok(if changes == 1 {
+            format!(
+                "Link id {} tagged as duplicate of {}",
+                link_id, duplicate_id
             )
         } else {
             "No path tagged".to_string()

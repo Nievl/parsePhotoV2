@@ -19,40 +19,41 @@ pub fn init_db_tables() -> Result<()> {
     let conn = Connection::open(db_name)?;
     conn.execute(
         "CREATE TABLE IF NOT EXISTS links (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            path TEXT NOT NULL UNIQUE,
-            name TEXT,
-            is_downloaded BOOLEAN NOT NULL DEFAULT 1,
-            progress INTEGER DEFAULT 0,
-            downloaded_mediafiles INTEGER DEFAULT 0,
-            mediafiles INTEGER DEFAULT 0,
-            date_update DATETIME DEFAULT CURRENT_TIMESTAMP,
-            date_create DATETIME DEFAULT CURRENT_TIMESTAMP,
-            is_reachable BOOLEAN NOT NULL DEFAULT 0
-        )",
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                path TEXT NOT NULL UNIQUE,
+                name TEXT,
+                is_downloaded BOOLEAN NOT NULL DEFAULT 1,
+                progress INTEGER DEFAULT 0,
+                downloaded_mediafiles INTEGER DEFAULT 0,
+                mediafiles INTEGER DEFAULT 0,
+                date_update DATETIME DEFAULT CURRENT_TIMESTAMP,
+                date_create DATETIME DEFAULT CURRENT_TIMESTAMP,
+                is_reachable BOOLEAN NOT NULL DEFAULT 0,
+                duplicate_id INTEGER DEFAULT NULL
+            )",
         [],
     )?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS mediafiles (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            path TEXT NOT NULL UNIQUE,
-            name TEXT NOT NULL,
-            hash TEXT NOT NULL,
-            size INTEGER NOT NULL,
-            date_added DATETIME DEFAULT CURRENT_TIMESTAMP
-        )",
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                path TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                hash TEXT NOT NULL,
+                size INTEGER NOT NULL,
+                date_added DATETIME DEFAULT CURRENT_TIMESTAMP
+            )",
         [],
     )?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS mediafiles_links (
-            link_id INTEGER NOT NULL,
-            mediafile_id INTEGER NOT NULL,
-            FOREIGN KEY (link_id) REFERENCES links(id) ON DELETE CASCADE,
-            FOREIGN KEY (mediafile_id) REFERENCES mediafiles(id) ON DELETE CASCADE,
-            PRIMARY KEY (link_id, mediafile_id)
-        )",
+                link_id INTEGER NOT NULL,
+                mediafile_id INTEGER NOT NULL,
+                FOREIGN KEY (link_id) REFERENCES links(id) ON DELETE CASCADE,
+                FOREIGN KEY (mediafile_id) REFERENCES mediafiles(id) ON DELETE CASCADE,
+                PRIMARY KEY (link_id, mediafile_id)
+            )",
         [],
     )?;
 

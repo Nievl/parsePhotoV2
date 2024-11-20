@@ -34,6 +34,8 @@ pub struct CreateLinkDto {
 pub struct BooleanQuery {
     #[serde(rename = "isReachable")]
     pub is_reachable: Option<bool>,
+    #[serde(rename = "showDuplicate")]
+    pub show_duplicate: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -45,4 +47,10 @@ pub struct TagUnreachableParams {
 #[derive(Deserialize)]
 pub struct IdDto {
     pub id: usize,
+}
+
+#[derive(Deserialize)]
+pub struct IdDublicateDto {
+    pub link_id: usize,
+    pub duplicate_id: usize,
 }

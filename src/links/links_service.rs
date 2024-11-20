@@ -57,10 +57,10 @@ impl LinksService {
         }
     }
 
-    pub async fn get_all(&self, is_reachable: bool) -> impl IntoResponse {
+    pub async fn get_all(&self, is_reachable: bool, show_duplicate: bool) -> impl IntoResponse {
         info!("Getting all links is_reachable: {}", &is_reachable);
 
-        return match self.links_db_service.get_all(is_reachable) {
+        return match self.links_db_service.get_all(is_reachable, show_duplicate) {
             Ok(links) => Ok((StatusCode::OK, Json(links))),
             Err(e) => {
                 error!("Error getting links: {}", e);
@@ -339,7 +339,7 @@ impl LinksService {
     pub async fn scan_files(&self) -> impl IntoResponse {
         let links_id = self
             .links_db_service
-            .get_all(true)
+            .get_all(true, true)
             .unwrap()
             .into_iter()
             .map(|link| link.id);
@@ -349,6 +349,13 @@ impl LinksService {
         }
 
         success_response("".to_string())
+    }
+
+    pub async fn add_duplicate(&self, link_id: usize, duplicate_id: usize) -> impl IntoResponse {
+        match self.links_db_service.add_duplicate(link_id, duplicate_id) {
+            Ok(m) => Ok(success_response(m)),
+            Err(e) => Err(e.to_string()),
+        }
     }
 
     async fn handle_downloaded_dir_without_page(

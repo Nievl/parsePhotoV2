@@ -7,10 +7,7 @@ use axum::{
 
 use std::sync::Arc;
 
-use super::{
-    dto::{BooleanQuery, CreateLinkDto, IdDto, TagUnreachableParams},
-    links_service::LinksService,
-};
+use super::{dto::*, links_service::LinksService};
 
 #[derive(Clone)]
 pub struct LinksController {}
@@ -27,7 +24,12 @@ impl LinksController {
         State(service): State<Arc<LinksService>>,
         Query(query): Query<BooleanQuery>,
     ) -> impl IntoResponse {
-        service.get_all(query.is_reachable.unwrap_or(false)).await
+        service
+            .get_all(
+                query.is_reachable.unwrap_or(false),
+                query.show_duplicate.unwrap_or(true),
+            )
+            .await
     }
 
     pub async fn remove(
@@ -70,6 +72,15 @@ impl LinksController {
     pub async fn scan_files(State(service): State<Arc<LinksService>>) -> impl IntoResponse {
         service.scan_files().await
     }
+
+    pub async fn add_duplicate(
+        State(service): State<Arc<LinksService>>,
+        Query(query): Query<IdDublicateDto>,
+    ) -> impl IntoResponse {
+        service
+            .add_duplicate(query.link_id, query.duplicate_id)
+            .await
+    }
 }
 
 pub fn links_routes() -> Router {
@@ -91,5 +102,6 @@ pub fn links_routes() -> Router {
             get(LinksController::scan_files_for_link),
         )
         .route("/links/scan_files", get(LinksController::scan_files))
+        .route("/links/add_duplicate", get(LinksController::add_duplicate))
         .with_state(Arc::new(LinksService::new()))
 }
