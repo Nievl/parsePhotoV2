@@ -16,7 +16,7 @@ use select::{
     predicate::{Name, Or},
 };
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs::{create_dir_all, read_dir},
     path::{Path, PathBuf},
     sync::Arc,
@@ -60,13 +60,28 @@ impl LinksService {
     pub async fn get_all(&self, is_reachable: bool, show_duplicate: bool) -> impl IntoResponse {
         info!("Getting all links is_reachable: {}", &is_reachable);
 
-        return match self.links_db_service.get_all(is_reachable, show_duplicate) {
-            Ok(links) => Ok((StatusCode::OK, Json(links))),
+        let mut link_in_db = match self.links_db_service.get_all(is_reachable, show_duplicate) {
+            Ok(links) => links,
             Err(e) => {
                 error!("Error getting links: {}", e);
-                Err(server_error_response("Error getting links".to_string()))
+                return Err(server_error_response("Error getting links".to_string()));
             }
         };
+
+        let id_to_path: HashMap<usize, String> = link_in_db
+            .iter()
+            .map(|link| (link.id, link.path.clone()))
+            .collect();
+
+        for link in link_in_db.iter_mut() {
+            if let Some(duplicate_id) = link.duplicate_id {
+                if let Some(path) = id_to_path.get(&duplicate_id) {
+                    link.duplicate_path = Some(path.clone());
+                }
+            }
+        }
+
+        return Ok((StatusCode::OK, Json(link_in_db)));
     }
 
     pub async fn remove(&self, id: usize) -> impl IntoResponse {

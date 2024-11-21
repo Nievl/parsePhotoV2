@@ -60,6 +60,8 @@ impl LinksDbService {
                 date_update: row.get(7)?,
                 date_create: row.get(8)?,
                 is_reachable: row.get(9)?,
+                duplicate_id: row.get(10)?,
+                duplicate_path: None,
             })
         })?;
 
@@ -102,6 +104,8 @@ impl LinksDbService {
                 date_update: row.get(7)?,
                 date_create: row.get(8)?,
                 is_reachable: row.get(9)?,
+                duplicate_id: row.get(10)?,
+                duplicate_path: None,
             };
             Ok(Some(link))
         } else {

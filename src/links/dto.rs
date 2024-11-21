@@ -17,6 +17,10 @@ pub struct Link {
     pub date_update: Option<String>,
     #[serde(rename = "dateCreate")]
     pub date_create: String,
+    #[serde(rename = "duplicateId")]
+    pub duplicate_id: Option<usize>,
+    #[serde(rename = "duplicatePath")]
+    pub duplicate_path: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
