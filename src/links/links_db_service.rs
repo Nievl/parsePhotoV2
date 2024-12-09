@@ -42,7 +42,12 @@ impl LinksDbService {
     pub fn get_all(&self, is_reachable: bool, show_duplicate: bool) -> Result<Vec<Link>> {
         let conn = self.open_connection()?;
         let query = if show_duplicate {
-            "SELECT * FROM links WHERE is_reachable = ? AND duplicate_id IS NOT NULL ORDER BY is_downloaded"
+            "SELECT l.*, d.path AS duplicate_path 
+                FROM links AS l
+                LEFT JOIN links d
+                ON l.duplicate_id = d.id
+                WHERE l.is_reachable = ? AND l.duplicate_id IS NOT NULL 
+                ORDER BY l.is_downloaded"
         } else {
             "SELECT * FROM links WHERE is_reachable = ? AND duplicate_id IS NULL ORDER BY is_downloaded"
         };
@@ -61,7 +66,7 @@ impl LinksDbService {
                 date_create: row.get(8)?,
                 is_reachable: row.get(9)?,
                 duplicate_id: row.get(10)?,
-                duplicate_path: None,
+                duplicate_path: row.get(11).ok(),
             })
         })?;
 
