@@ -4,6 +4,8 @@ export interface iLink extends iLinkCreateRequest, iLinkUpdateRequest {
   dateUpdate: Date;
   isReachable: boolean;
   name: string;
+  duplicateId?: number;
+  duplicatePath?: string;
 }
 
 export interface iLinkCreateRequest {

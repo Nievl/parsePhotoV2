@@ -1,11 +1,4 @@
-import {
-  SortingState,
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from '@tanstack/react-table';
+import { SortingState, createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';
 import { observer } from 'mobx-react';
 import React, { useEffect } from 'react';
 import { iLink } from '../models/links';
@@ -66,6 +59,8 @@ const TableLinks = () => {
     const { value } = e.target;
     if (value === 'all') {
       links.getAll();
+    } else if (value === 'duplicates') {
+      links.getAll(true, true);
     } else {
       links.getAll(false);
     }
@@ -90,7 +85,8 @@ const TableLinks = () => {
         Get list
         <div>
           <input type="radio" value="all" name="getList" defaultChecked onChange={onGetList} /> all
-          <input type="radio" value="Female" name="getList" onChange={onGetList} /> archived
+          <input type="radio" value="archived" name="getList" onChange={onGetList} /> archived
+          <input type="radio" value="duplicates" name="getList" onChange={onGetList} /> duplicates
         </div>
       </div>
       <div className="table_links_table">
@@ -134,9 +130,7 @@ const TableLinks = () => {
             {table.getFooterGroups().map((footerGroup) => (
               <tr key={footerGroup.id}>
                 {footerGroup.headers.map((header) => (
-                  <th key={header.id}>
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.footer, header.getContext())}
-                  </th>
+                  <th key={header.id}>{header.isPlaceholder ? null : flexRender(header.column.columnDef.footer, header.getContext())}</th>
                 ))}
               </tr>
             ))}

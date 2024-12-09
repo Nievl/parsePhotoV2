@@ -6,9 +6,14 @@ import { iLink, iLinkCreateRequest } from "../models/links";
 
 const path = "/links";
 
-export function getAllLinks(isReachable: boolean): Promise<iLink[]> {
+export function getAllLinks(
+  isReachable: boolean,
+  showDuplicate: boolean
+): Promise<iLink[]> {
   return HandleRequest(
-    axios.get<iLink[]>(urlJoin(path, ""), { params: { isReachable } })
+    axios.get<iLink[]>(urlJoin(path, ""), {
+      params: { isReachable, showDuplicate },
+    })
   );
 }
 
@@ -70,6 +75,21 @@ export function scanFilesForLink(id: number): Promise<iResult> {
     return HandleRequest(
       axios.get<iResult>(urlJoin(path, "/scan_files_for_link"), {
         params: { id },
+      })
+    );
+  } catch (error) {
+    console.log("error: ", error);
+  }
+}
+
+export function addDuplicate(
+  linkId: number,
+  duplicateId: number
+): Promise<iResult> {
+  try {
+    return HandleRequest(
+      axios.get<iResult>(urlJoin(path, "/add_duplicate"), {
+        params: { linkId, duplicateId },
       })
     );
   } catch (error) {

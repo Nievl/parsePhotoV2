@@ -1,11 +1,7 @@
-import { makeAutoObservable } from "mobx";
-import { iLink } from "../models/links";
-import {
-  checkDownloaded,
-  getAllLinks,
-  downLoad,
-  scanFilesForLink,
-} from "../services/links";
+import { makeAutoObservable } from 'mobx';
+import { iLink } from '../models/links';
+import { checkDownloaded, getAllLinks, downLoad, scanFilesForLink, addDuplicate } from '../services/links';
+import { NotificationManager } from 'react-notifications';
 
 class Links {
   links: iLink[] = [];
@@ -15,8 +11,8 @@ class Links {
     makeAutoObservable(this);
   }
 
-  async getAll(isReachable: boolean = true) {
-    this.links = await getAllLinks(isReachable);
+  async getAll(isReachable: boolean = true, showDuplicate: boolean = false) {
+    this.links = await getAllLinks(isReachable, showDuplicate);
   }
 
   openEdit(id: number | null) {
@@ -43,6 +39,20 @@ class Links {
 
   async scanFilesForLink(id: number) {
     await scanFilesForLink(id);
+  }
+
+  async addDuplicate(linkId: number, duplicateId: number) {
+    if (duplicateId !== 0) {
+      const link = this.links.find((l) => l.id === duplicateId);
+      if (!link) {
+        NotificationManager.info(`link with ${duplicateId} not found`);
+        return;
+      }
+    }
+
+    await addDuplicate(linkId, duplicateId);
+    await this.getAll(true, true);
+    this.openEdit(linkId);
   }
 }
 

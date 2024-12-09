@@ -1,19 +1,48 @@
 import { observer } from 'mobx-react';
-import React from 'react';
+import React, { useRef } from 'react';
 import { NotificationManager } from 'react-notifications';
 import { deleteOne, tagUnreachable } from '../services/links';
 import { links } from '../states/links';
 
 const LinkModal = () => {
+  const inputId = useRef(null);
+
   if (!links.editModal) {
     return null;
   }
-  const { downloadedMediafiles, id, isDownloaded, path, name, progress, mediafiles, isReachable } = links.editModal;
+  const {
+    downloadedMediafiles,
+    id,
+    isDownloaded,
+    path,
+    name,
+    progress,
+    mediafiles,
+    isReachable,
+    duplicateId,
+    duplicatePath,
+  } = links.editModal;
+
   const close = (e) => {
     if (e.key === 'Escape') {
       links.openEdit(null);
     }
   };
+
+  const onAddDuplicate = () => {
+    const duplicateId = inputId.current.value;
+    const numID = parseInt(duplicateId);
+    if (isNaN(numID)) {
+      NotificationManager.error('invalid duplicate id');
+      return;
+    }
+
+    let isConfirm = confirm(`add ${duplicateId} as duplicate of ${id} ?`);
+    if (isConfirm) {
+      links.addDuplicate(id, Number(duplicateId));
+    }
+  };
+
   return (
     <div
       className="modal fade show bd-example-modal-lg"
@@ -90,6 +119,26 @@ const LinkModal = () => {
                   <td>
                     {downloadedMediafiles}/{mediafiles}
                   </td>
+                </tr>
+                <tr>
+                  <td scope="col">duplicate ID</td>
+                  <td className="input-group">
+                    <input
+                      type="number"
+                      name="duplicateId"
+                      id="duplicateId"
+                      defaultValue={duplicateId ?? 0}
+                      className="form-control"
+                      ref={inputId}
+                    />
+                    <button className="btn btn-primary" onClick={onAddDuplicate}>
+                      <img src="/static/svg/save.svg" className="icon" />
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td scope="col">duplicate</td>
+                  <td>{duplicatePath}</td>
                 </tr>
               </tbody>
             </table>

@@ -1,7 +1,7 @@
 use super::dto::Link;
 use crate::utils::get_now_time;
 use log::error;
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, types::Value, Connection, Result};
 use std::env;
 
 pub struct LinksDbService {
@@ -136,10 +136,20 @@ impl LinksDbService {
 
     pub fn add_duplicate(&self, link_id: usize, duplicate_id: usize) -> Result<String> {
         let conn = self.open_connection()?;
-        let changes = conn.execute(
-            "UPDATE links SET duplicate_id = ?, date_update = ? WHERE id = ?",
-            params![duplicate_id, get_now_time(), link_id],
-        )?;
+
+        let (duplicate_value, query) = if duplicate_id == 0 {
+            (
+                Value::Null,
+                "UPDATE links SET duplicate_id = ?, date_update = ? WHERE id = ?",
+            )
+        } else {
+            (
+                Value::from(duplicate_id as i32),
+                "UPDATE links SET duplicate_id = ?, date_update = ? WHERE id = ?",
+            )
+        };
+
+        let changes = conn.execute(query, params![duplicate_value, get_now_time(), link_id])?;
 
         Ok(if changes == 1 {
             format!(
