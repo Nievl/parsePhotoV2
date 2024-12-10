@@ -44,12 +44,15 @@ impl LinksDbService {
         let query = if show_duplicate {
             "SELECT l.*, d.path AS duplicate_path 
                 FROM links AS l
-                LEFT JOIN links d
+                LEFT JOIN links AS d
                 ON l.duplicate_id = d.id
                 WHERE l.is_reachable = ? AND l.duplicate_id IS NOT NULL 
                 ORDER BY l.is_downloaded"
         } else {
-            "SELECT * FROM links WHERE is_reachable = ? AND duplicate_id IS NULL ORDER BY is_downloaded"
+            "SELECT * 
+                FROM links 
+                WHERE is_reachable = ? AND duplicate_id IS NULL 
+                ORDER BY is_downloaded"
         };
         let mut stmt = conn.prepare(query)?;
 
@@ -177,7 +180,9 @@ impl LinksDbService {
         let conn = self.open_connection()?;
 
         let changes = conn.execute(
-            "UPDATE links SET mediafiles = ?, downloaded_mediafiles = ?, is_downloaded = ?, progress = ?, date_update = ? WHERE id = ?",
+            "UPDATE links 
+                    SET mediafiles = ?, downloaded_mediafiles = ?, is_downloaded = ?, progress = ?, date_update = ? 
+                    WHERE id = ?",
             params![mediafiles, downloaded_mediafiles, is_downloaded, progress, get_now_time(), id],
         )?;
         Ok(if changes == 1 {

@@ -354,7 +354,13 @@ impl LinksService {
     pub async fn add_duplicate(&self, link_id: usize, duplicate_id: usize) -> impl IntoResponse {
         match self.links_db_service.add_duplicate(link_id, duplicate_id) {
             Ok(m) => Ok(success_response(m)),
-            Err(e) => Err(e.to_string()),
+            Err(e) => {
+                error!("Error adding duplicate: {}", e);
+                Err(server_error_response(format!(
+                    "Error adding duplicate: {}",
+                    duplicate_id
+                )))
+            }
         }
     }
 
