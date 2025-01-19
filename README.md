@@ -1,4 +1,4 @@
-'cargo watch -w src -x run' for start live reloading
+'cargo watch -w backend/src -x run' for start live reloading
 'cargo build --release' for build release version
 
 1. create .env file with:
