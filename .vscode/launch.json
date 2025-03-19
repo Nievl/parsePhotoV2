@@ -40,6 +40,15 @@
             },
             "args": [],
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "node",
+            "request": "attach",
+            "name": "Node: Attach to Nodemon",
+            "port": 9229,
+            "restart": true,
+            "protocol": "inspector",
+            "console": "integratedTerminal"
         }
     ]
 }

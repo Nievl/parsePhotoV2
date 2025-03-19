@@ -1,0 +1,61 @@
+module.exports = {
+  parser: '@typescript-eslint/parser',
+  parserOptions: {
+    project: 'tsconfig.json',
+    tsconfigRootDir: __dirname,
+    sourceType: 'module',
+  },
+  plugins: ['@typescript-eslint/eslint-plugin'],
+  extends: [
+    'plugin:@typescript-eslint/recommended',
+    'plugin:prettier/recommended',
+  ],
+  root: true,
+  env: {
+    browser: false,
+    node: true,
+    jest: true,
+  },
+  ignorePatterns: ['.eslintrc.js'],
+  rules: {
+    '@typescript-eslint/no-unnecessary-type-assertion': 'error',
+    '@typescript-eslint/explicit-function-return-type': [
+      'error',
+      { allowExpressions: true },
+    ],
+    '@typescript-eslint/no-shadow': ['error', { hoist: 'all' }],
+    '@typescript-eslint/no-empty-function': 'error',
+    '@typescript-eslint/array-type': 'error',
+    '@typescript-eslint/no-var-requires': 'error',
+    '@typescript-eslint/ban-types': 0,
+    '@typescript-eslint/explicit-module-boundary-types': 'off',
+    '@typescript-eslint/no-inferrable-types': 'off',
+    '@typescript-eslint/ban-ts-comment': 'off',
+    '@typescript-eslint/no-non-null-assertion': 'off',
+    '@typescript-eslint/member-ordering': 'error',
+    'default-param-last': 'error',
+    'prettier/prettier': 'error',
+    'prefer-const': 'error',
+    'no-console': 'error',
+    'no-bitwise': 'error',
+    'max-classes-per-file': ['error', 1],
+    'no-empty': ['error', { allowEmptyCatch: true }],
+    'no-useless-catch': 'error',
+    'no-extra-boolean-cast': 'off',
+    'no-prototype-builtins': 'off',
+    'no-useless-escape': 'off',
+    'no-return-await': 'error',
+    'require-await': 'error',
+    curly: 'error',
+  },
+  settings: {
+    'import/resolver': {
+      typescript: {
+        project: ['tsconfig.json', 'package/tsconfig.json'],
+      },
+      node: {
+        project: ['tsconfig.json', 'package/tsconfig.json'],
+      },
+    },
+  },
+};
