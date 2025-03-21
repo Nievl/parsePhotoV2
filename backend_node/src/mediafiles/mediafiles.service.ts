@@ -1,5 +1,5 @@
-import { iResult } from 'src/entities/common';
-import { CreateMediafileDto, Mediafile } from 'src/entities/mediafiles.entity';
+import { iResult } from '../entities/common';
+import { CreateMediafileDto, Mediafile } from '../entities/mediafiles.entity';
 import { MediafilesDbService } from './mediafiles.db.service';
 import { Injectable, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';

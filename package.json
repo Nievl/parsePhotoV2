@@ -6,6 +6,7 @@
   "license": "MIT",
   "scripts": {
     "start": "npm run start:dev --prefix backend_node",
+    "start:inspect": "npm run start:inspect --prefix backend_node",
     "start:front": "npm run start --prefix frontend",
     "frontend:build": "npm run build --prefix frontend",
     "backend:build": "npm run build --prefix backend_node"

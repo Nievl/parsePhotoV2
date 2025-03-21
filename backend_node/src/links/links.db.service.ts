@@ -1,8 +1,8 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { AsyncDatabase } from 'promised-sqlite3';
-import { iResult } from 'src/entities/common';
-import { CreateLinkDto, Link, LinkDto, UpdateLinkDto } from 'src/entities/link.entity';
-import { dateConvert, resultMaker } from 'src/helpers/common';
+import { iResult } from '../entities/common';
+import { CreateLinkDto, Link, LinkDto, UpdateLinkDto } from '../entities/link.entity';
+import { dateConvert, resultMaker } from '../helpers/common';
 
 @Injectable()
 export default class LinksDbService {

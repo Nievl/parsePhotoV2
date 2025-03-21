@@ -3,13 +3,13 @@ import axios from 'axios';
 import * as fs from 'fs';
 import parse, { HTMLElement } from 'node-html-parser';
 import * as path from 'path';
-import { iResult } from 'src/entities/common';
-import { CreateLinkDto, Link } from 'src/entities/link.entity';
-import { checkUrl, resultMaker } from 'src/helpers/common';
+import { iResult } from '../entities/common';
+import { CreateLinkDto, Link } from '../entities/link.entity';
+import { checkUrl, resultMaker } from '../helpers/common';
 
 import LinksDbService from './links.db.service';
-import { MediafilesService } from 'src/mediafiles/mediafiles.service';
-import { CreateMediafileDto } from 'src/entities/mediafiles.entity';
+import { MediafilesService } from '../mediafiles/mediafiles.service';
+import { CreateMediafileDto } from '../entities/mediafiles.entity';
 
 const EXTENSIONS = ['jpeg', 'jpg', 'mp4', 'png', 'gif', 'webp'];
 

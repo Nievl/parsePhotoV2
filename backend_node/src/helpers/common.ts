@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { iResult } from 'src/entities/common';
+import { iResult } from '../entities/common';
 
 export function chunkArray(array: string[], chunkSize: number): string[][] {
   const results: string[][] = [];

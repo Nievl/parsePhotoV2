@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Post, Query } from '@nestjs/common';
-import { iResult } from 'src/entities/common';
-import { booleanParser } from 'src/helpers/common';
+import { iResult } from '../entities/common';
+import { booleanParser } from '../helpers/common';
 import { CreateLinkDto, Link } from '../entities/link.entity';
 import { LinksService } from './links.service';
 

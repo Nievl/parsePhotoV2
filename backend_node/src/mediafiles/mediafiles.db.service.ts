@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { AsyncDatabase } from 'promised-sqlite3';
-import { iResult } from 'src/entities/common';
-import { CreateMediafileDto, Mediafile, MediafileDto } from 'src/entities/mediafiles.entity';
-import { resultMaker } from 'src/helpers/common';
+import { iResult } from '../entities/common';
+import { CreateMediafileDto, Mediafile, MediafileDto } from '../entities/mediafiles.entity';
+import { resultMaker } from '../helpers/common';
 import { open } from 'sqlite';
 import { Database } from 'sqlite3';
 
