@@ -176,6 +176,7 @@ const onDelete = async (id: number) => {
     const result = await deleteOne(id);
     alert(result.message);
     links.getAll();
+    links.openEdit(null);
   }
 };
 

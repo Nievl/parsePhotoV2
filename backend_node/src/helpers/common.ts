@@ -20,7 +20,3 @@ export function dateConvert(date?: string): string {
 export const booleanParser = (source: string): boolean => JSON.parse(source.toLowerCase());
 
 export const resultMaker = (message?: string): iResult => ({ success: true, message });
-
-export const checkUrl = (url: string): string[] | null => url.trim().match(urlReg);
-
-const urlReg = /(http[s]?:\/\/[^\/\s]+\/)(.*)/;

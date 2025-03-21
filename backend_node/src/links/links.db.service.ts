@@ -17,14 +17,14 @@ export default class LinksDbService {
           LEFT JOIN links AS d
           ON l.duplicate_id = d.id
           WHERE l.is_reachable = ? AND l.duplicate_id IS NOT NULL 
-          ORDER BY l.is_downloaded
+          ORDER BY date_update DESC, is_downloaded ASC;
         `;
     } else {
       query = `
         SELECT * 
         FROM links 
         WHERE is_reachable = ? AND duplicate_id IS NULL 
-        ORDER BY is_downloaded
+        ORDER BY date_update DESC, is_downloaded ASC;
         `;
     }
 
@@ -36,7 +36,7 @@ export default class LinksDbService {
     return mappedResult;
   }
 
-  public async createOne({ path, name }: CreateLinkDto): Promise<iResult> {
+  public async createOne(path: string, name: string): Promise<iResult> {
     const db = await AsyncDatabase.open(process.env.DB_NAME);
     try {
       const result = await db.run(

@@ -3,11 +3,11 @@ export interface Link extends CreateLinkDto, UpdateLinkDto {
   dateCreate: Date;
   dateUpdate: Date;
   isReachable: boolean;
+  name: string;
 }
 
 export class CreateLinkDto {
   path: string;
-  name?: string;
 }
 
 export class UpdateLinkDto {
@@ -20,7 +20,7 @@ export class UpdateLinkDto {
 export class LinkDto implements Link {
   id: number;
   path: string;
-  name?: string;
+  name: string;
   isDownloaded: boolean;
   progress: number;
   downloadedMediafiles: number;
