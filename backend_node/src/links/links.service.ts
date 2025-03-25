@@ -1,7 +1,6 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import * as fs from 'fs';
-import parse, { HTMLElement } from 'node-html-parser';
 import * as path from 'path';
 import { iResult } from '../entities/common';
 import { CreateLinkDto, Link } from '../entities/link.entity';
@@ -10,6 +9,7 @@ import { resultMaker } from '../helpers/common';
 import LinksDbService from './links.db.service';
 import { MediafilesService } from '../mediafiles/mediafiles.service';
 import { CreateMediafileDto } from '../entities/mediafiles.entity';
+import { getMediaUrls } from '../../';
 
 const EXTENSIONS = ['jpeg', 'jpg', 'mp4', 'png', 'gif', 'webp'];
 const checkUrl = (url: string): string[] | null => url.trim().match(/(http[s]?:\/\/[^\/\s]+\/)(.*)/);
@@ -59,7 +59,8 @@ export class LinksService {
     const link = await this.linksDbService.getOne(id);
     const page = await this.getPage(link.path);
     const isOsosedkiDomain = this.isOsosedkiDomain(link.path);
-    const urls = this.getMediaUrls(page, isOsosedkiDomain);
+    const isTelegraph = link.path.includes('telegra.ph');
+    const urls = getMediaUrls(page, isOsosedkiDomain, isTelegraph ? 'https://telegra.ph' : undefined);
     const dirPath = await this.createDirectory(link.name);
     const downloadQueue: (() => Promise<CreateMediafileDto | null>)[] = [];
     let downloadedCount = 0;
@@ -140,7 +141,7 @@ export class LinksService {
     const link = await this.linksDbService.getOne(id);
 
     const dirPath = path.join(__dirname, '../../../result', link.name);
-    let page: HTMLElement | null = null;
+    let page: string | null = null;
     const dir = fs.existsSync(dirPath);
     try {
       page = await this.getPage(link.path);
@@ -165,7 +166,7 @@ export class LinksService {
       }
     } else if (dir && page) {
       const files = fs.readdirSync(dirPath);
-      const mediafiles = this.getMediaUrls(page, isOsosedkiDomain).size;
+      const mediafiles = getMediaUrls(page, isOsosedkiDomain).length;
       const progress = Math.round((files.length * 100) / mediafiles);
       const isDownloaded = files.length === mediafiles;
       await this.linksDbService.updateFilesNumber(link.id, {
@@ -176,7 +177,7 @@ export class LinksService {
       });
       return resultMaker(`dowloaded ${files.length} from ${mediafiles}`);
     } else if (!dir && page) {
-      const mediafiles = this.getMediaUrls(page, isOsosedkiDomain).size;
+      const mediafiles = getMediaUrls(page, isOsosedkiDomain).length;
 
       await this.linksDbService.updateFilesNumber(link.id, {
         downloadedMediafiles: 0,
@@ -246,39 +247,16 @@ export class LinksService {
   }
 
   /**
-   * Извлекает URL изображений и видео из HTML-страницы.
-   *
-   * @param {HTMLElement} page - HTML-страница, из которой извлекаются медиа-файлы.
-   * @param {boolean} absoluteOnly - Фильтровать только абсолютные URL (начинающиеся с `http://` или `https://`).
-   * @returns {Set<string>} Уникальный список URL медиа-файлов.
-   */
-  private getMediaUrls(page: HTMLElement, absoluteOnly: boolean = false): Set<string> {
-    const urls = new Set<string>();
-    const media = page.querySelectorAll('img, video');
-
-    for (const element of media) {
-      const src = element.getAttribute('src');
-      if (src) {
-        if (!absoluteOnly || src.startsWith('http://') || src.startsWith('https://')) {
-          urls.add(src);
-        }
-      }
-    }
-
-    return urls;
-  }
-
-  /**
    * Загружает и парсит HTML-контент по указанному URL.
    *
    * @param {string} url - URL веб-страницы, которую нужно загрузить.
    * @returns {Promise<HTMLElement>} Промис, который возвращает распарсенный HTML-контент.
    * @throws {Error} В случае ошибки запроса или проблемы с парсингом.
    */
-  private async getPage(url: string): Promise<HTMLElement> {
+  private async getPage(url: string): Promise<string> {
     const response = await axios.get<string>(url);
 
-    return parse(response.data);
+    return response.data;
   }
 
   private async createDirectory(linkName: string): Promise<string> {
