@@ -10,10 +10,10 @@ import { resultMaker } from '../helpers/common';
 import LinksDbService from './links.db.service';
 import { MediafilesService } from '../mediafiles/mediafiles.service';
 import { CreateMediafileDto } from '../entities/mediafiles.entity';
-import { of } from 'rxjs';
 
 const EXTENSIONS = ['jpeg', 'jpg', 'mp4', 'png', 'gif', 'webp'];
 const checkUrl = (url: string): string[] | null => url.trim().match(/(http[s]?:\/\/[^\/\s]+\/)(.*)/);
+const MAX_CONCURRENT_DOWNLOADS = 5; // Ограничение параллельных загрузок
 
 @Injectable()
 export class LinksService {
@@ -61,32 +61,38 @@ export class LinksService {
     const isOsosedkiDomain = this.isOsosedkiDomain(link.path);
     const urls = this.getMediaUrls(page, isOsosedkiDomain);
     const dirPath = await this.createDirectory(link.name);
-    const requests: (CreateMediafileDto | null)[] = [];
+    const downloadQueue: (() => Promise<CreateMediafileDto | null>)[] = [];
     let downloadedCount = 0;
     let totalFiles = 0;
 
     for (const url of urls) {
       const cleanUrl = url.split('?')[0];
-      const ext = (/[^.]+$/.exec(cleanUrl) ?? [])[0] ?? '';
+      const ext = path.extname(cleanUrl).replace('.', '');
+
+      if (!EXTENSIONS.includes(ext)) {
+        Logger.warn(`${link.name} is not picture`);
+        continue;
+      }
+      totalFiles++;
+
       const fileName = cleanUrl.replace(/.+\//g, '');
       const pathName = path.join(dirPath, fileName);
       const useRootUrl = !url.match(/https?:?\/\//);
       const fullUrl = useRootUrl ? link.path + url : url;
-      if (EXTENSIONS.includes(ext)) {
-        totalFiles++;
 
-        if (!fs.existsSync(pathName)) {
-          const newUrl = await this.getHighResUrl(fullUrl);
-          requests.push(await this.mediafilesService.downloadFile(newUrl, pathName, id));
-        } else {
-          downloadedCount++;
-        }
-      } else {
-        Logger.warn(`${link.name} is not picture`);
+      if (fs.existsSync(pathName)) {
+        downloadedCount++;
+        continue;
       }
+
+      // Добавляем задачу скачивания в очередь
+      downloadQueue.push(async () => {
+        const newUrl = await this.getHighResUrl(fullUrl);
+        return this.mediafilesService.downloadFile(newUrl, pathName, id);
+      });
     }
 
-    const downloadedMediafiles = requests.filter((m) => m !== null);
+    const downloadedMediafiles = (await this.processQueue(downloadQueue)).filter((m) => m !== null);
 
     await Promise.all(downloadedMediafiles.map((m) => this.mediafilesService.createOne(m)));
 
@@ -319,5 +325,42 @@ export class LinksService {
       Logger.log(`${url} has no high res`);
       return false;
     }
+  }
+
+  /**
+   * Обрабатывает очередь асинхронных задач с ограничением числа одновременных потоков.
+   *
+   * @param queue - Массив функций, каждая из которых возвращает `Promise<CreateMediafileDto | null>`.
+   * @returns Массив результатов выполнения всех задач.
+   *
+   * ⚡ Алгоритм работы:
+   * 1. Поддерживает ограниченное количество активных задач (`MAX_CONCURRENT_DOWNLOADS`).
+   * 2. Запускает новые задачи, пока есть свободные слоты.
+   * 3. Ждет завершения одной из активных задач (использует `Promise.race`).
+   * 4. После завершения задачи освобождает слот и добавляет новую из очереди.
+   * 5. Повторяет процесс, пока не выполнит все задачи.
+   */
+  private async processQueue(
+    queue: (() => Promise<CreateMediafileDto | null>)[],
+  ): Promise<(CreateMediafileDto | null)[]> {
+    const activeTasks: Promise<CreateMediafileDto | null>[] = [];
+    const results: (CreateMediafileDto | null)[] = [];
+
+    while (queue.length > 0 || activeTasks.length > 0) {
+      while (activeTasks.length < MAX_CONCURRENT_DOWNLOADS && queue.length > 0) {
+        const task = queue.shift();
+        if (task) {
+          const taskPromise = task().then((res) => {
+            activeTasks.splice(activeTasks.indexOf(taskPromise), 1);
+            results.push(res);
+            return res;
+          });
+          activeTasks.push(taskPromise);
+        }
+      }
+      await Promise.race(activeTasks);
+    }
+
+    return results;
   }
 }

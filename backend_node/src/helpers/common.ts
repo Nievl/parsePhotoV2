@@ -1,14 +1,6 @@
 import dayjs from 'dayjs';
 import { iResult } from '../entities/common';
 
-export function chunkArray(array: string[], chunkSize: number): string[][] {
-  const results: string[][] = [];
-  while (array.length) {
-    results.push(array.splice(0, chunkSize));
-  }
-  return results;
-}
-
 export function dateConvert(date?: string): string {
   if (date) {
     return dayjs(date).format(`YYYY-MM-DD HH:mm:ss`).toString();
