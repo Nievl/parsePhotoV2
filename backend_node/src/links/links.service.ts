@@ -9,7 +9,7 @@ import { resultMaker } from '../helpers/common';
 import LinksDbService from './links.db.service';
 import { MediafilesService } from '../mediafiles/mediafiles.service';
 import { CreateMediafileDto } from '../entities/mediafiles.entity';
-import { getMediaUrls } from '../../';
+import { getMediaUrls } from '../napi/';
 
 const EXTENSIONS = ['jpeg', 'jpg', 'mp4', 'png', 'gif', 'webp'];
 const checkUrl = (url: string): string[] | null => url.trim().match(/(http[s]?:\/\/[^\/\s]+\/)(.*)/);
