@@ -30,4 +30,31 @@ class old {
 
     return urls;
   }
+
+  /** Генерирует URL высокого разрешения */
+  private async getHighResUrl(url: string): Promise<string> {
+    const highResUrl = url.replace('/a/604/', '/a/1280/');
+    if (await this.isImageAccessible(highResUrl)) {
+      return highResUrl;
+    } else {
+      return url;
+    }
+  }
+
+  /** Проверяет, доступно ли изображение высокого разрешения   */
+  private async isImageAccessible(url: string): Promise<boolean> {
+    try {
+      const response = await axios.head(url, {
+        timeout: 5000,
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+        },
+      });
+      return response.status === 200;
+    } catch (e) {
+      Logger.log(`${url} has no high res`);
+      return false;
+    }
+  }
 }

@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-napi = { version = "2.0", features = ["serde"] }
-napi-derive = "2"
-scraper = "0.12"
+napi = { version = "2.16.7", features = ["serde"] }
+napi-derive = "2.16.13"
+scraper = "0.23.1"
+ureq = "3.0.10"
+
 
 [lib]
 name = "napi"
@@ -14,13 +16,11 @@ crate-type = ["cdylib"]
 path = "napi/src/lib.rs"
 
 [build-dependencies]
-napi-build = "1"
-
-[workspace]
-
-[package.metadata.napi]
-out-dir = "./src/napi"
+napi-build = "2.1.6"
 
 [profile.release]
 opt-level = 3  # Высокий уровень оптимизаций для минимизации кода
 lto = true      # Включение Link Time Optimization (LTO) для дополнительной оптимизации
+
+
+[workspace]

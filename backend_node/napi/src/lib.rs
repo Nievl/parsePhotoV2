@@ -1,5 +1,6 @@
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
+use ureq;
 use scraper::{Html, Selector};
 use std::collections::HashSet;
 
@@ -40,4 +41,14 @@ fn get_media_urls(
 
     // Конвертируем HashSet в вектор строк
     Ok(urls.into_iter().collect())
+}
+
+#[napi]
+fn get_high_res_url(url: String) -> String {
+    let high_res_url = url.replace("/a/604/", "/a/1280/");
+
+    return match ureq::head(&high_res_url).call() {
+        Ok(_) => high_res_url, // Если запрос успешен, возвращаем high_res_url
+        Err(_) => url,         // Иначе возвращаем исходный URL
+    };
 }

@@ -9,7 +9,7 @@ import { resultMaker } from '../helpers/common';
 import LinksDbService from './links.db.service';
 import { MediafilesService } from '../mediafiles/mediafiles.service';
 import { CreateMediafileDto } from '../entities/mediafiles.entity';
-import { getMediaUrls } from '../napi/';
+import { getMediaUrls, getHighResUrl } from '../napi/';
 
 const EXTENSIONS = ['jpeg', 'jpg', 'mp4', 'png', 'gif', 'webp'];
 const checkUrl = (url: string): string[] | null => url.trim().match(/(http[s]?:\/\/[^\/\s]+\/)(.*)/);
@@ -17,7 +17,10 @@ const MAX_CONCURRENT_DOWNLOADS = 5; // Ограничение параллель
 
 @Injectable()
 export class LinksService {
-  constructor(private linksDbService: LinksDbService, private mediafilesService: MediafilesService) {}
+  constructor(
+    private linksDbService: LinksDbService,
+    private mediafilesService: MediafilesService,
+  ) {}
 
   /**
    * Создание нового объекта ссылки.
@@ -88,7 +91,7 @@ export class LinksService {
 
       // Добавляем задачу скачивания в очередь
       downloadQueue.push(async () => {
-        const newUrl = await this.getHighResUrl(fullUrl);
+        const newUrl = await getHighResUrl(fullUrl);
         return this.mediafilesService.downloadFile(newUrl, pathName, id);
       });
     }
@@ -276,33 +279,6 @@ export class LinksService {
   /** Проверяет, принадлежит ли URL домену ososedki.com */
   private isOsosedkiDomain(url: string): boolean {
     return url.includes('ososedki.com');
-  }
-
-  /** Генерирует URL высокого разрешения */
-  private async getHighResUrl(url: string): Promise<string> {
-    const highResUrl = url.replace('/a/604/', '/a/1280/');
-    if (await this.isImageAccessible(highResUrl)) {
-      return highResUrl;
-    } else {
-      return url;
-    }
-  }
-
-  /** Проверяет, доступно ли изображение высокого разрешения   */
-  private async isImageAccessible(url: string): Promise<boolean> {
-    try {
-      const response = await axios.head(url, {
-        timeout: 5000,
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
-        },
-      });
-      return response.status === 200;
-    } catch (e) {
-      Logger.log(`${url} has no high res`);
-      return false;
-    }
   }
 
   /**
