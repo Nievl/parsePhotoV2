@@ -9,7 +9,7 @@ import { resultMaker } from '../helpers/common';
 import LinksDbService from './links.db.service';
 import { MediafilesService } from '../mediafiles/mediafiles.service';
 import { CreateMediafileDto } from '../entities/mediafiles.entity';
-import { getMediaUrls, getHighResUrl } from '../napi/';
+import { getMediaUrls, getHighResUrl, getHashByPath } from '../napi/';
 
 const EXTENSIONS = ['jpeg', 'jpg', 'mp4', 'png', 'gif', 'webp'];
 const checkUrl = (url: string): string[] | null => url.trim().match(/(http[s]?:\/\/[^\/\s]+\/)(.*)/);
@@ -227,7 +227,7 @@ export class LinksService {
     const requests: Promise<iResult>[] = files.map(async (fileName) => {
       const pathName = path.join(dirPath, fileName);
       if (!existedMediafilesPathSet.has(pathName)) {
-        const hash = await this.mediafilesService.getHashByPath(pathName);
+        const hash = await getHashByPath(pathName);
         const stats = await fs.promises.stat(pathName);
 
         return this.mediafilesService.createOne({
