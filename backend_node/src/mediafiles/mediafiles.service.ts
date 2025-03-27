@@ -2,7 +2,7 @@ import { iResult } from '../entities/common';
 import { CreateMediafileDto, Mediafile } from '../entities/mediafiles.entity';
 import { MediafilesDbService } from './mediafiles.db.service';
 import { Injectable, Logger } from '@nestjs/common';
-import * as crypto from 'crypto';
+import { getHashByPath } from 'src/napi';
 import * as fs from 'fs';
 import * as path from 'path';
 import axios from 'axios';
@@ -61,7 +61,7 @@ export class MediafilesService {
         writer.on('error', reject);
       });
 
-      const hash = await this.getHashByPath(filePath);
+      const hash = await getHashByPath(filePath);
       const name = path.basename(filePath);
 
       return {
@@ -81,12 +81,5 @@ export class MediafilesService {
       Logger.error(`\nurl: ${url}\n`, message);
       return null;
     }
-  }
-
-  public async getHashByPath(path: string): Promise<string> {
-    const fileBuffer = await fs.promises.readFile(path);
-    const hashSum = crypto.createHash('sha256');
-    hashSum.update(fileBuffer);
-    return hashSum.digest('hex');
   }
 }

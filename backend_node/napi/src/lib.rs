@@ -4,6 +4,11 @@ use ureq;
 use scraper::{Html, Selector};
 use std::collections::HashSet;
 
+use sha2::{Digest, Sha256};
+use std::fs::File;
+use std::io::Read;
+
+
 #[napi]
 fn get_media_urls(
     page: String,
@@ -51,4 +56,20 @@ fn get_high_res_url(url: String) -> String {
         Ok(_) => high_res_url, // Если запрос успешен, возвращаем high_res_url
         Err(_) => url,         // Иначе возвращаем исходный URL
     };
+}
+
+#[napi]
+fn get_hash_by_path(path: String) -> Result<String> {
+    // Читаем файл в буфер
+    let mut file = File::open(&path).unwrap();
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer).unwrap();
+
+    // Создаем SHA256 хеш
+    let mut hasher = Sha256::new();
+    let _ = hasher.update(&buffer);
+    let hash_result = hasher.finalize();
+
+    // Преобразуем байты в строку hex
+    Ok(format!("{:x}", hash_result))
 }

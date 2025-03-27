@@ -57,4 +57,11 @@ class old {
       return false;
     }
   }
+
+  public async getHashByPath(path: string): Promise<string> {
+    const fileBuffer = await fs.promises.readFile(path);
+    const hashSum = crypto.createHash('sha256');
+    hashSum.update(fileBuffer);
+    return hashSum.digest('hex');
+  }
 }

@@ -5,3 +5,4 @@
 
 export declare function getMediaUrls(page: string, absoluteOnly: boolean, domain?: string | undefined | null): Array<string>
 export declare function getHighResUrl(url: string): string
+export declare function getHashByPath(path: string): string
