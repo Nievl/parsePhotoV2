@@ -2,7 +2,7 @@ import { iResult } from '../entities/common';
 import { CreateMediafileDto, Mediafile } from '../entities/mediafiles.entity';
 import { MediafilesDbService } from './mediafiles.db.service';
 import { Injectable, Logger } from '@nestjs/common';
-import { getHashByPath } from 'src/napi';
+import { getHashByPath } from '../napi/';
 import * as fs from 'fs';
 import * as path from 'path';
 import axios from 'axios';
